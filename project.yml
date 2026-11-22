@@ -43,6 +43,7 @@ targets:
 
 schemes:
   FollowDeck:
-    targets:
-      FollowDeck: [run]
-      FollowDeckTests: [test]
+    build:
+      targets:
+        FollowDeck: [run]
+        FollowDeckTests: [test]
