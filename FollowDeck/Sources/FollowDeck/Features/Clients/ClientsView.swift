@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ClientsView: View {
     @EnvironmentObject private var store: StoreBridge
+    @State private var showingAddClient = false
 
     private var clients: [Client] { store.clients() }
 
@@ -35,6 +36,18 @@ struct ClientsView: View {
                 }
             }
             .navigationTitle("Clients")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingAddClient = true
+                    } label: {
+                        Label("Add client", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddClient) {
+                AddClientView()
+            }
             .overlay {
                 if clients.isEmpty {
                     ContentUnavailableView(

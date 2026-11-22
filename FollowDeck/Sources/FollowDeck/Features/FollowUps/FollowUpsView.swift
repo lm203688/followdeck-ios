@@ -9,6 +9,7 @@ import SwiftUI
 
 struct FollowUpsView: View {
     @EnvironmentObject private var store: StoreBridge
+    @State private var showingAddFollowUp = false
 
     private var followUps: [FollowUp] { store.allFollowUps() }
 
@@ -20,6 +21,18 @@ struct FollowUpsView: View {
                 }
             }
             .navigationTitle("Follow-ups")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingAddFollowUp = true
+                    } label: {
+                        Label("Add follow-up", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddFollowUp) {
+                AddFollowUpView()
+            }
             .overlay {
                 if followUps.isEmpty {
                     ContentUnavailableView(
