@@ -15,6 +15,7 @@ struct FollowDeckApp: App {
 
     init() {
         let store = PersistenceController.shared.makeStore()
+        SampleData.seedIfEmpty(store: store)
         _bridge = StateObject(wrappedValue: StoreBridge(store: store))
     }
 

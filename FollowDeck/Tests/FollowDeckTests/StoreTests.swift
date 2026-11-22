@@ -81,4 +81,24 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(store.allDeals().isEmpty)
         XCTAssertTrue(store.interactions(for: client.id).isEmpty)
     }
+
+    func testSeedPopulatesEmptyStore() {
+        let store = makeStore()
+        SampleData.seedIfEmpty(store: store)
+
+        XCTAssertFalse(store.clients().isEmpty)
+        XCTAssertFalse(store.allFollowUps().isEmpty)
+        XCTAssertFalse(store.allDeals().isEmpty)
+    }
+
+    func testSeedDoesNotDuplicateExistingData() {
+        let store = makeStore()
+        store.addClient(Client(name: "Only Existing"))
+
+        SampleData.seedIfEmpty(store: store)
+
+        XCTAssertEqual(store.clients().count, 1)
+        XCTAssertEqual(store.allFollowUps().count, 0)
+        XCTAssertEqual(store.allDeals().count, 0)
+    }
 }
