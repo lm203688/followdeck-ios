@@ -24,6 +24,9 @@ struct PipelineView: View {
                             ForEach(stageDeals) { deal in
                                 DealRow(deal: deal)
                             }
+                            .onDelete { offsets in
+                                offsets.forEach { store.deleteDeal(id: stageDeals[$0].id) }
+                            }
                         }
                     }
                 }

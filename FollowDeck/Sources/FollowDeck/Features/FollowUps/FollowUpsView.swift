@@ -19,6 +19,9 @@ struct FollowUpsView: View {
                 ForEach(followUps) { item in
                     FollowUpRow(followUp: item, tint: color(for: item.status))
                 }
+                .onDelete { offsets in
+                    offsets.forEach { store.deleteFollowUp(id: followUps[$0].id) }
+                }
             }
             .navigationTitle("Follow-ups")
             .toolbar {

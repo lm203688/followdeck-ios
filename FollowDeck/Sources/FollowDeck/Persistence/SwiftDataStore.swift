@@ -191,6 +191,9 @@ final class SwiftDataStore: StoreProtocol {
     func deleteClient(id: UUID) {
         guard let record = fetch(SDClient.self).first(where: { $0.id == id }) else { return }
         context.delete(record)
+        fetch(SDFollowUp.self).filter { $0.clientID == id }.forEach { context.delete($0) }
+        fetch(SDDeal.self).filter { $0.clientID == id }.forEach { context.delete($0) }
+        fetch(SDInteraction.self).filter { $0.clientID == id }.forEach { context.delete($0) }
     }
 
     // Deals
@@ -239,6 +242,11 @@ final class SwiftDataStore: StoreProtocol {
         guard let record = fetch(SDFollowUp.self).first(where: { $0.id == id }) else { return }
         record.statusRaw = FollowUpStatus.done.rawValue
         record.completedAt = at
+    }
+
+    func deleteFollowUp(id: UUID) {
+        guard let record = fetch(SDFollowUp.self).first(where: { $0.id == id }) else { return }
+        context.delete(record)
     }
 
     // Interactions

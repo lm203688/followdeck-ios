@@ -30,6 +30,7 @@ protocol StoreProtocol: AnyObject {
     func addFollowUp(_ followUp: FollowUp)
     func updateFollowUp(_ followUp: FollowUp)
     func completeFollowUp(id: UUID, at: Date)
+    func deleteFollowUp(id: UUID)
 
     // Interactions
     func addInteraction(_ interaction: Interaction)
@@ -54,7 +55,12 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
         clientList[index] = client
     }
 
-    func deleteClient(id: UUID) { clientList.removeAll { $0.id == id } }
+    func deleteClient(id: UUID) {
+        clientList.removeAll { $0.id == id }
+        followUpList.removeAll { $0.clientID == id }
+        dealList.removeAll { $0.clientID == id }
+        interactionList.removeAll { $0.clientID == id }
+    }
 
     func allDeals() -> [Deal] { dealList }
 
@@ -88,6 +94,10 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
         guard let index = followUpList.firstIndex(where: { $0.id == id }) else { return }
         followUpList[index].status = .done
         followUpList[index].completedAt = at
+    }
+
+    func deleteFollowUp(id: UUID) {
+        followUpList.removeAll { $0.id == id }
     }
 
     func addInteraction(_ interaction: Interaction) { interactionList.append(interaction) }
@@ -127,6 +137,7 @@ final class StoreBridge: ObservableObject {
     func addFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.addFollowUp(followUp) }
     func updateFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.updateFollowUp(followUp) }
     func completeFollowUp(id: UUID, at: Date) { objectWillChange.send(); store.completeFollowUp(id: id, at: at) }
+    func deleteFollowUp(id: UUID) { objectWillChange.send(); store.deleteFollowUp(id: id) }
 
     // MARK: Interactions
     func addInteraction(_ interaction: Interaction) { objectWillChange.send(); store.addInteraction(interaction) }

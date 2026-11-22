@@ -38,6 +38,9 @@ struct ClientsView: View {
                         }
                     }
                 }
+                .onDelete { offsets in
+                    offsets.forEach { store.deleteClient(id: clients[$0].id) }
+                }
             }
             .navigationTitle("Clients")
             .toolbar {
