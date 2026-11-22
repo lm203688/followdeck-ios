@@ -28,18 +28,56 @@ protocol AIServiceProtocol: AnyObject {
     func draftReengagementMessage(for client: Client, context: String) async throws -> String
 }
 
-/// Placeback until native Apple Intelligence / on-device or secure backend integration is wired on macOS.
+/// Placeholder until native Apple Intelligence / on-device or secure backend integration is wired on macOS.
+/// The current tier is a transparent local rule engine: stage-based cadence, dwell-time awareness
+/// and last-contact channel. Every suggestion is labelled `native`; nothing leaves the device.
 final class AIService: AIServiceProtocol {
     func suggestNextStep(for deal: Deal, history: [Interaction]) async throws -> NextStepSuggestion {
         // TODO(macOS): prefer on-device/native framework; fall back to secure backend only if needed.
+        let calendar = Calendar.current
+        let now = Date()
+        let daysStale = max(0, calendar.dateComponents([.day], from: deal.updatedAt, to: now).day ?? 0)
         let offset = deal.stage.defaultFollowUpOffsetDays
-        let dueAt = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+        let settled = deal.stage == .closed || deal.stage == .paid
+        let stalled = !settled && daysStale > max(offset, 3)
+
+        let dueAt: Date
+        if settled {
+            dueAt = now
+        } else if stalled {
+            dueAt = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+        } else {
+            dueAt = calendar.date(byAdding: .day, value: offset, to: now) ?? now
+        }
+
+        var rationale = "Default cadence for stage \(deal.stage.rawValue)."
+        if let last = history.sorted(by: { $0.date > $1.date }).first {
+            rationale += " Last contact via \(last.channel.displayName)."
+        }
+        if stalled {
+            rationale += " Unchanged for \(daysStale) days, so a sooner nudge makes sense."
+        }
+
         return NextStepSuggestion(
-            action: "Follow up on \(deal.title) (\(deal.stage.rawValue)).",
+            action: Self.action(for: deal.stage),
             suggestedDueAt: dueAt,
-            rationale: "Default cadence for stage \(deal.stage.rawValue).",
+            rationale: rationale,
             generatedBy: "native"
         )
+    }
+
+    private static func action(for stage: DealStage) -> String {
+        switch stage {
+        case .lead:       return "Send an introductory follow-up and qualify the client's need."
+        case .proposal:   return "Follow up on the proposal and answer any open questions."
+        case .quote:      return "Check whether the quote was reviewed and clarify pricing questions."
+        case .contract:   return "Push to finalize and sign the contract."
+        case .delivering: return "Share a progress update and confirm the next milestones."
+        case .invoiced:   return "Confirm the invoice was received and answer billing questions."
+        case .paid:       return "Thank the client and ask for a referral or repeat work."
+        case .atRisk:     return "Reach out promptly to recover the stalled engagement."
+        case .closed:     return "No active step; keep the relationship warm."
+        }
     }
 
     func draftReengagementMessage(for client: Client, context: String) async throws -> String {
