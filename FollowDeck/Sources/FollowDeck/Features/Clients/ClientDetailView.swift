@@ -57,6 +57,9 @@ struct ClientDetailView: View {
                     if deals.isEmpty {
                         Text("No deals yet.").foregroundColor(.secondary)
                     } else {
+                        if let first = deals.first {
+                            NextStepCard(deal: first, history: interactions)
+                        }
                         ForEach(deals) { deal in
                             DealRow(deal: deal, onEdit: { editingDeal = deal })
                         }
@@ -125,6 +128,41 @@ private struct InteractionRow: View {
             Text(interaction.summary).font(.subheadline).lineLimit(3)
             if let duration = interaction.durationMinutes {
                 Text("\(duration) min").font(.caption).foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+private struct NextStepCard: View {
+    let deal: Deal
+    let history: [Interaction]
+    @State private var suggestion: NextStepSuggestion?
+    @State private var failed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let suggestion {
+                Label(suggestion.action, systemImage: "sparkles")
+                    .font(.subheadline)
+                Text("Suggested for \(DisplayFormat.date(suggestion.suggestedDueAt)).")
+                    .font(.caption).foregroundColor(.secondary)
+                Text(suggestion.rationale)
+                    .font(.caption).foregroundColor(.secondary)
+            } else if failed {
+                Text("No suggestion right now.").foregroundColor(.secondary).font(.caption)
+            } else {
+                ProgressView()
+            }
+        }
+        .onAppear(load)
+    }
+
+    private func load() {
+        Task {
+            do {
+                suggestion = try await AIService().suggestNextStep(for: deal, history: history)
+            } catch {
+                failed = true
             }
         }
     }
