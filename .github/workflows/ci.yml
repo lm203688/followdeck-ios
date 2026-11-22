@@ -19,7 +19,6 @@ on:
 
 env:
   SCHEME: FollowDeck
-  XCODEGEN_VERSION: "2.48.0"
 
 jobs:
   validate:
@@ -47,13 +46,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Token prefixes are split (e.g. gh[p]_) so this workflow file's own
+          # example patterns do not self-match. .github is excluded for the same reason.
           if grep -RInE --exclude-dir=.git \
             -e "BEGIN [A-Z ]*PRIVATE KEY" \
-            -e "github_pat_[A-Za-z0-9_]{20,}" \
-            -e "ghp_[A-Za-z0-9]{20,}" \
-            -e "gho_[A-Za-z0-9]{20,}" \
+            -e "github_[p]at_[A-Za-z0-9_]{20,}" \
+            -e "gh[p]_[A-Za-z0-9]{20,}" \
+            -e "gh[o]_[A-Za-z0-9]{20,}" \
             -e "-----BEGIN" \
-            FollowDeck .github project.yml 2>/dev/null; then
+            FollowDeck project.yml 2>/dev/null; then
             echo "::error::Possible secret committed to source. Remove it before merging."
             exit 1
           fi
@@ -99,9 +100,10 @@ jobs:
           xcodebuild -version
 
       - name: Install XcodeGen
-        uses: maxim-lobanov/setup-xcodegen@v1
-        with:
-          xcodegen-version: ${{ env.XCODEGEN_VERSION }}
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen --version
 
       - name: Generate Xcode project
         run: xcodegen generate
