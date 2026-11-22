@@ -17,20 +17,24 @@ struct ClientsView: View {
         NavigationStack {
             List {
                 ForEach(clients) { client in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(client.name).font(.headline)
-                        HStack(spacing: 8) {
-                            if let email = client.email, !email.isEmpty {
-                                Label(email, systemImage: "envelope")
+                    NavigationLink {
+                        ClientDetailView(clientID: client.id)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(client.name).font(.headline)
+                            HStack(spacing: 8) {
+                                if let email = client.email, !email.isEmpty {
+                                    Label(email, systemImage: "envelope")
+                                }
+                                if let phone = client.phone, !phone.isEmpty {
+                                    Label(phone, systemImage: "phone")
+                                }
                             }
-                            if let phone = client.phone, !phone.isEmpty {
-                                Label(phone, systemImage: "phone")
+                            .font(.caption).foregroundColor(.secondary)
+                            if !client.tags.isEmpty {
+                                Text(client.tags.joined(separator: " · "))
+                                    .font(.caption).foregroundColor(.secondary)
                             }
-                        }
-                        .font(.caption).foregroundColor(.secondary)
-                        if !client.tags.isEmpty {
-                            Text(client.tags.joined(separator: " · "))
-                                .font(.caption).foregroundColor(.secondary)
                         }
                     }
                 }

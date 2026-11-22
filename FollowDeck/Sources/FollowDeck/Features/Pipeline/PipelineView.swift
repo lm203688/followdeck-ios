@@ -41,7 +41,7 @@ struct PipelineView: View {
     }
 }
 
-private struct DealRow: View {
+struct DealRow: View {
     @EnvironmentObject private var store: StoreBridge
     let deal: Deal
 

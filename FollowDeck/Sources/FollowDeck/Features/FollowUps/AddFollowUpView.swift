@@ -18,6 +18,10 @@ struct AddFollowUpView: View {
     @State private var dueAt: Date =
         Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
 
+    init(preselectedClientID: UUID? = nil) {
+        _selectedClientID = State(initialValue: preselectedClientID)
+    }
+
     private var clients: [Client] { store.clients() }
     private var canSave: Bool {
         selectedClientID != nil && !note.trimmingCharacters(in: .whitespaces).isEmpty
