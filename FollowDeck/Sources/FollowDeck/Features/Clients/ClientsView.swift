@@ -10,13 +10,23 @@ import SwiftUI
 struct ClientsView: View {
     @EnvironmentObject private var store: StoreBridge
     @State private var showingAddClient = false
+    @State private var searchText = ""
 
     private var clients: [Client] { store.clients() }
+
+    private var filteredClients: [Client] {
+        guard !searchText.isEmpty else { return clients }
+        let needle = searchText.lowercased()
+        return clients.filter {
+            $0.name.lowercased().contains(needle)
+            || ($0.email ?? "").lowercased().contains(needle)
+        }
+    }
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(clients) { client in
+                ForEach(filteredClients) { client in
                     NavigationLink {
                         ClientDetailView(clientID: client.id)
                     } label: {
@@ -39,9 +49,10 @@ struct ClientsView: View {
                     }
                 }
                 .onDelete { offsets in
-                    offsets.forEach { store.deleteClient(id: clients[$0].id) }
+                    offsets.forEach { store.deleteClient(id: filteredClients[$0].id) }
                 }
             }
+            .searchable(text: $searchText, prompt: "Search clients")
             .navigationTitle("Clients")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
