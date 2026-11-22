@@ -130,6 +130,16 @@ jobs:
             -configuration Debug \
             -quiet
 
+      - name: Run unit tests
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project FollowDeck.xcodeproj \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -configuration Debug \
+            -quiet
+
       # --- Signing, upload and submit (enabled once secrets are provisioned) ---
       # Required GitHub secrets (never committed):
       #   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT (.p8, base64)

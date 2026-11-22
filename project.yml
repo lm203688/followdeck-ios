@@ -33,8 +33,16 @@ targets:
     # Extensions (widget, share sheet) are added here in M1 once the MVP target builds.
     dependencies: []
 
-# Tests are added after the model/service layer stabilizes.
-# schemes:
-#   FollowDeck:
-#     targets:
-#       FollowDeck: [test, launch]
+  FollowDeckTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: FollowDeck/Tests/FollowDeckTests
+    dependencies:
+      - target: FollowDeck
+
+schemes:
+  FollowDeck:
+    targets:
+      FollowDeck: [build, launch]
+      FollowDeckTests: [test]
