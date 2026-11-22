@@ -87,6 +87,17 @@ struct FollowUpRow: View {
                 }
                 .font(.caption).foregroundColor(.secondary)
             }
+            Spacer()
+            Button {
+                store.completeFollowUp(id: followUp.id, at: Date())
+            } label: {
+                Image(systemName: followUp.status == .done ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(followUp.status == .done ? .green : .secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(followUp.status == .done ? "Completed" : "Mark as done")
+            .disabled(followUp.status == .done)
         }
     }
 }
