@@ -21,7 +21,10 @@ struct ClientEntity: AppEntity {
     static var defaultQuery = ClientEntityQuery()
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(name)", subtitle: email ?? "")
+        DisplayRepresentation(
+            title: LocalizedStringResource(stringLiteral: name),
+            subtitle: email.map { LocalizedStringResource(stringLiteral: $0) }
+        )
     }
 
     init(id: UUID, name: String, email: String?) {
@@ -64,8 +67,8 @@ struct FollowUpEntity: AppEntity {
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
-            title: note,
-            subtitle: "\(DisplayFormat.date(dueAt)) · \(status.displayName)"
+            title: LocalizedStringResource(stringLiteral: note),
+            subtitle: LocalizedStringResource(stringLiteral: "\(DisplayFormat.date(dueAt)) · \(status.displayName)")
         )
     }
 
@@ -108,7 +111,10 @@ struct DealEntity: AppEntity {
     static var defaultQuery = DealEntityQuery()
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: title, subtitle: stage.displayName)
+        DisplayRepresentation(
+            title: LocalizedStringResource(stringLiteral: title),
+            subtitle: LocalizedStringResource(stringLiteral: stage.displayName)
+        )
     }
 
     init(id: UUID, title: String, stage: DealStage) {
