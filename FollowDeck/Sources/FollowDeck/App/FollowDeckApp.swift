@@ -2,8 +2,8 @@
 //  FollowDeckApp.swift
 //  FollowDeck
 //
-//  App entry point and composition root. A local-first SwiftData ModelContainer is
-//  built here; the StoreBridge wraps the SwiftData store for SwiftUI observation.
+//  App entry point and composition root. The shared SwiftData container lives in
+//  PersistenceController; the StoreBridge wraps the store for SwiftUI observation.
 //
 
 import SwiftUI
@@ -12,19 +12,10 @@ import SwiftData
 @main
 struct FollowDeckApp: App {
     @StateObject private var bridge: StoreBridge
-    private let container: ModelContainer
 
     init() {
-        do {
-            let container = try ModelContainer(
-                for: SDClient.self, SDDeal.self, SDFollowUp.self, SDInteraction.self
-            )
-            self.container = container
-            let store = SwiftDataStore(context: container.mainContext)
-            self._bridge = StateObject(wrappedValue: StoreBridge(store: store))
-        } catch {
-            fatalError("Unable to initialize SwiftData ModelContainer: \(error)")
-        }
+        let store = PersistenceController.shared.makeStore()
+        _bridge = StateObject(wrappedValue: StoreBridge(store: store))
     }
 
     var body: some Scene {

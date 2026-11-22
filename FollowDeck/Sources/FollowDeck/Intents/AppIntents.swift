@@ -2,16 +2,25 @@
 //  AppIntents.swift
 //  FollowDeck
 //
-//  System / Siri integration manifest. Full conformance and intent registration are
-//  completed in the Xcode project on macOS. See docs/INTENTS.md for the full list.
-//
-//  NOTE: AppIntent parameters use String UUIDs here as a compile-safe placeholder.
-//  In M1 these become AppEntity models backed by an EntityQuery so Siri can resolve
-//  real clients/deals by name rather than by identifier.
+//  System / Siri integration. Intents read and write through the shared SwiftData
+//  store. String UUIDs are a placeholder until AppEntity + EntityQuery resolution
+//  lands in a later iteration. See docs/INTENTS.md for the full intent list.
 //
 
 import AppIntents
 import Foundation
+
+enum FollowDeckIntentError: Error, LocalizedError {
+    case invalidID
+    case missingEntity
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidID:   return "The provided identifier is not valid."
+        case .missingEntity: return "No matching record was found."
+        }
+    }
+}
 
 /// Record an interaction with a client.
 struct LogInteractionIntent: AppIntent {
@@ -25,7 +34,15 @@ struct LogInteractionIntent: AppIntent {
     var summary: String
 
     func perform() async throws -> some IntentResult {
-        // TODO(macOS): append Interaction to the store, update lastContactedAt.
+        guard let id = UUID(uuidString: clientID) else { throw FollowDeckIntentError.invalidID }
+        try await MainActor.run {
+            let store = PersistenceController.shared.makeStore()
+            guard var client = store.client(id: id) else { throw FollowDeckIntentError.missingEntity }
+            let interaction = Interaction(clientID: id, channel: .other, summary: summary)
+            store.addInteraction(interaction)
+            client.lastContactedAt = Date()
+            store.updateClient(client)
+        }
         return .result()
     }
 }
@@ -45,7 +62,14 @@ struct AddFollowUpIntent: AppIntent {
     var dueAt: Date
 
     func perform() async throws -> some IntentResult {
-        // TODO(macOS): create FollowUp, schedule reminder via ReminderService.
+        guard let id = UUID(uuidString: clientID) else { throw FollowDeckIntentError.invalidID }
+        try await MainActor.run {
+            let store = PersistenceController.shared.makeStore()
+            guard store.client(id: id) != nil else { throw FollowDeckIntentError.missingEntity }
+            let followUp = FollowUp(clientID: id, note: note, dueAt: dueAt)
+            store.addFollowUp(followUp)
+            ReminderService().schedule(followUp)
+        }
         return .result()
     }
 }
@@ -56,8 +80,17 @@ struct ListUpNextIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        // TODO(macOS): return pending follow-ups as a dialog / result.
-        return .result(dialog: "Up next are loaded in FollowDeck.")
+        let pending = await MainActor.run {
+            PersistenceController.shared.makeStore().pendingFollowUps()
+        }
+        if pending.isEmpty {
+            return .result(dialog: "You have no follow-ups due right now.")
+        }
+        let top = pending.prefix(5).map { item in
+            let client = PersistenceController.shared.makeStore().client(id: item.clientID)?.name ?? "a client"
+            return "\(client): \(item.note)"
+        }
+        return .result(dialog: Dialog("Up next: \(top.joined(separator: ". "))."))
     }
 }
 
@@ -70,7 +103,10 @@ struct CompleteFollowUpIntent: AppIntent {
     var followUpID: String
 
     func perform() async throws -> some IntentResult {
-        // TODO(macOS): complete in store, reschedule next stage action.
+        guard let id = UUID(uuidString: followUpID) else { throw FollowDeckIntentError.invalidID }
+        try await MainActor.run {
+            PersistenceController.shared.makeStore().completeFollowUp(id: id, at: Date())
+        }
         return .result()
     }
 }
@@ -84,8 +120,18 @@ struct ClientStatusIntent: AppIntent {
     var clientID: String
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        // TODO(macOS): read current stage and next action.
-        return .result(dialog: "Client status is loaded in FollowDeck.")
+        guard let id = UUID(uuidString: clientID) else { throw FollowDeckIntentError.invalidID }
+        let dialog = try await MainActor.run { () -> Dialog in
+            let store = PersistenceController.shared.makeStore()
+            guard let client = store.client(id: id) else { throw FollowDeckIntentError.missingEntity }
+            let deals = store.deals(for: id)
+            if deals.isEmpty {
+                return Dialog("\(client.name) has no active deal yet.")
+            }
+            let summary = deals.map { "\($0.title), stage \($0.stage.displayName)" }
+            return Dialog("\(client.name): \(summary.joined(separator: "; ")).")
+        }
+        return .result(dialog: dialog)
     }
 }
 
@@ -98,7 +144,13 @@ struct SuggestNextStepIntent: AppIntent {
     var dealID: String
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        // TODO(macOS): call AIService.suggestNextStep, return editable suggestion.
-        return .result(dialog: "A next-step suggestion is ready in FollowDeck.")
+        guard let id = UUID(uuidString: dealID) else { throw FollowDeckIntentError.invalidID }
+        let suggestion = try await MainActor.run { () -> NextStepSuggestion in
+            let store = PersistenceController.shared.makeStore()
+            guard let deal = store.allDeals().first(where: { $0.id == id }) else { throw FollowDeckIntentError.missingEntity }
+            let history = store.interactions(for: deal.clientID)
+            return try AIService().suggestNextStep(for: deal, history: history)
+        }
+        return .result(dialog: Dialog("\(suggestion.action) Suggested for \(DisplayFormat.date(suggestion.suggestedDueAt))."))
     }
 }
