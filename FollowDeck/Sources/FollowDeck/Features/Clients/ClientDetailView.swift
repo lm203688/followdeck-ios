@@ -154,7 +154,7 @@ private struct NextStepCard: View {
                 ProgressView()
             }
         }
-        .onAppear(load)
+        .onAppear(perform: load)
     }
 
     private func load() {
