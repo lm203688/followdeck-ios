@@ -12,11 +12,13 @@ import SwiftUI
 protocol StoreProtocol: AnyObject {
     // Clients
     func clients() -> [Client]
+    func client(id: UUID) -> Client?
     func addClient(_ client: Client)
     func updateClient(_ client: Client)
     func deleteClient(id: UUID)
 
     // Deals
+    func allDeals() -> [Deal]
     func deals(for clientID: UUID) -> [Deal]
     func addDeal(_ deal: Deal)
     func updateDeal(_ deal: Deal)
@@ -24,6 +26,7 @@ protocol StoreProtocol: AnyObject {
 
     // Follow-ups
     func pendingFollowUps() -> [FollowUp]
+    func allFollowUps() -> [FollowUp]
     func addFollowUp(_ followUp: FollowUp)
     func updateFollowUp(_ followUp: FollowUp)
     func completeFollowUp(id: UUID, at: Date)
@@ -42,6 +45,8 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
 
     func clients() -> [Client] { clientList }
 
+    func client(id: UUID) -> Client? { clientList.first { $0.id == id } }
+
     func addClient(_ client: Client) { clientList.append(client) }
 
     func updateClient(_ client: Client) {
@@ -50,6 +55,8 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
     }
 
     func deleteClient(id: UUID) { clientList.removeAll { $0.id == id } }
+
+    func allDeals() -> [Deal] { dealList }
 
     func deals(for clientID: UUID) -> [Deal] { dealList.filter { $0.clientID == clientID } }
 
@@ -64,6 +71,10 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
 
     func pendingFollowUps() -> [FollowUp] {
         followUpList.filter { $0.status == .pending }.sorted { $0.dueAt < $1.dueAt }
+    }
+
+    func allFollowUps() -> [FollowUp] {
+        followUpList.sorted { $0.dueAt < $1.dueAt }
     }
 
     func addFollowUp(_ followUp: FollowUp) { followUpList.append(followUp) }
@@ -84,4 +95,40 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
     func interactions(for clientID: UUID) -> [Interaction] {
         interactionList.filter { $0.clientID == clientID }.sorted { $0.date > $1.date }
     }
+}
+
+/// ObservableObject wrapper so SwiftUI can observe a `StoreProtocol` behind one concrete type.
+/// Write methods forward and announce a change; persistence choice lives in the wrapped store.
+@MainActor
+final class StoreBridge: ObservableObject {
+    let store: StoreProtocol
+
+    init(store: StoreProtocol) {
+        self.store = store
+    }
+
+    // MARK: Clients
+    func clients() -> [Client] { store.clients() }
+    func client(id: UUID) -> Client? { store.client(id: id) }
+    func addClient(_ client: Client) { objectWillChange.send(); store.addClient(client) }
+    func updateClient(_ client: Client) { objectWillChange.send(); store.updateClient(client) }
+    func deleteClient(id: UUID) { objectWillChange.send(); store.deleteClient(id: id) }
+
+    // MARK: Deals
+    func allDeals() -> [Deal] { store.allDeals() }
+    func deals(for clientID: UUID) -> [Deal] { store.deals(for: clientID) }
+    func addDeal(_ deal: Deal) { objectWillChange.send(); store.addDeal(deal) }
+    func updateDeal(_ deal: Deal) { objectWillChange.send(); store.updateDeal(deal) }
+    func deleteDeal(id: UUID) { objectWillChange.send(); store.deleteDeal(id: id) }
+
+    // MARK: Follow-ups
+    func pendingFollowUps() -> [FollowUp] { store.pendingFollowUps() }
+    func allFollowUps() -> [FollowUp] { store.allFollowUps() }
+    func addFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.addFollowUp(followUp) }
+    func updateFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.updateFollowUp(followUp) }
+    func completeFollowUp(id: UUID, at: Date) { objectWillChange.send(); store.completeFollowUp(id: id, at: at) }
+
+    // MARK: Interactions
+    func addInteraction(_ interaction: Interaction) { objectWillChange.send(); store.addInteraction(interaction) }
+    func interactions(for clientID: UUID) -> [Interaction] { store.interactions(for: clientID) }
 }

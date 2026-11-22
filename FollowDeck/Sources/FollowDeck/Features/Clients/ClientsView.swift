@@ -1,0 +1,49 @@
+//
+//  ClientsView.swift
+//  FollowDeck
+//
+//  Client roster. Read-only over the store for now; add/edit/detail views follow later.
+//
+
+import SwiftUI
+
+struct ClientsView: View {
+    @EnvironmentObject private var store: StoreBridge
+
+    private var clients: [Client] { store.clients() }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(clients) { client in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(client.name).font(.headline)
+                        HStack(spacing: 8) {
+                            if let email = client.email, !email.isEmpty {
+                                Label(email, systemImage: "envelope")
+                            }
+                            if let phone = client.phone, !phone.isEmpty {
+                                Label(phone, systemImage: "phone")
+                            }
+                        }
+                        .font(.caption).foregroundColor(.secondary)
+                        if !client.tags.isEmpty {
+                            Text(client.tags.joined(separator: " · "))
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Clients")
+            .overlay {
+                if clients.isEmpty {
+                    ContentUnavailableView(
+                        "No clients",
+                        systemImage: "person.2",
+                        description: Text("Add a client to start tracking follow-ups and deals.")
+                    )
+                }
+            }
+        }
+    }
+}
