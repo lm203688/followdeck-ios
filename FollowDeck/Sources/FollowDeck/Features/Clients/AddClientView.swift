@@ -2,7 +2,7 @@
 //  AddClientView.swift
 //  FollowDeck
 //
-//  Minimal create-client form. Writes through the shared store via StoreBridge;
+//  Create or edit a client. Writes through the shared store via StoreBridge;
 //  the roster refreshes automatically on the next objectWillChange announcement.
 //
 
@@ -12,10 +12,19 @@ struct AddClientView: View {
     @EnvironmentObject private var store: StoreBridge
     @Environment(\.dismiss) private var dismiss
 
-    @State private var name = ""
-    @State private var email = ""
-    @State private var phone = ""
-    @State private var tagsText = ""
+    private let editingClient: Client?
+    @State private var name: String
+    @State private var email: String
+    @State private var phone: String
+    @State private var tagsText: String
+
+    init(client: Client? = nil) {
+        self.editingClient = client
+        _name = State(initialValue: client?.name ?? "")
+        _email = State(initialValue: client?.email ?? "")
+        _phone = State(initialValue: client?.phone ?? "")
+        _tagsText = State(initialValue: client?.tags.joined(separator: ", ") ?? "")
+    }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
     private var canSave: Bool { !trimmedName.isEmpty }
@@ -35,7 +44,7 @@ struct AddClientView: View {
                     TextField("Comma-separated tags", text: $tagsText)
                 }
             }
-            .navigationTitle("New Client")
+            .navigationTitle(editingClient == nil ? "New Client" : "Edit Client")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -55,13 +64,23 @@ struct AddClientView: View {
             .filter { !$0.isEmpty }
         let emailTrimmed = email.trimmingCharacters(in: .whitespaces)
         let phoneTrimmed = phone.trimmingCharacters(in: .whitespaces)
-        let client = Client(
-            name: trimmedName,
-            phone: phoneTrimmed.isEmpty ? nil : phoneTrimmed,
-            email: emailTrimmed.isEmpty ? nil : emailTrimmed,
-            tags: tags
-        )
-        store.addClient(client)
+
+        if let editingClient {
+            var updated = editingClient
+            updated.name = trimmedName
+            updated.email = emailTrimmed.isEmpty ? nil : emailTrimmed
+            updated.phone = phoneTrimmed.isEmpty ? nil : phoneTrimmed
+            updated.tags = tags
+            store.updateClient(updated)
+        } else {
+            let client = Client(
+                name: trimmedName,
+                phone: phoneTrimmed.isEmpty ? nil : phoneTrimmed,
+                email: emailTrimmed.isEmpty ? nil : emailTrimmed,
+                tags: tags
+            )
+            store.addClient(client)
+        }
         dismiss()
     }
 }

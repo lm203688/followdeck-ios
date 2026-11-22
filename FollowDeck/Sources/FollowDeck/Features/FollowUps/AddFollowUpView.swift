@@ -2,9 +2,8 @@
 //  AddFollowUpView.swift
 //  FollowDeck
 //
-//  Minimal create-follow-up form: pick an existing client, write a short note and
-//  a due date. Writes through StoreBridge; the Today and Follow-ups boards refresh
-//  automatically.
+//  Create or edit a follow-up: pick a client, write a short note and a due date.
+//  Writes through StoreBridge; the Today and Follow-ups boards refresh automatically.
 //
 
 import SwiftUI
@@ -13,13 +12,20 @@ struct AddFollowUpView: View {
     @EnvironmentObject private var store: StoreBridge
     @Environment(\.dismiss) private var dismiss
 
+    private let editingFollowUp: FollowUp?
     @State private var selectedClientID: UUID?
-    @State private var note = ""
-    @State private var dueAt: Date =
-        Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+    @State private var note: String
+    @State private var dueAt: Date
 
-    init(preselectedClientID: UUID? = nil) {
-        _selectedClientID = State(initialValue: preselectedClientID)
+    init(followUp: FollowUp? = nil, preselectedClientID: UUID? = nil) {
+        self.editingFollowUp = followUp
+        _selectedClientID = State(initialValue: followUp?.clientID ?? preselectedClientID)
+        _note = State(initialValue: followUp?.note ?? "")
+        _dueAt = State(
+            initialValue: followUp?.dueAt
+                ?? Calendar.current.date(byAdding: .day, value: 1, to: Date())
+                ?? Date()
+        )
     }
 
     private var clients: [Client] { store.clients() }
@@ -52,7 +58,7 @@ struct AddFollowUpView: View {
                     }
                 }
             }
-            .navigationTitle("New Follow-up")
+            .navigationTitle(editingFollowUp == nil ? "New Follow-up" : "Edit Follow-up")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -67,13 +73,19 @@ struct AddFollowUpView: View {
 
     private func save() {
         guard let clientID = selectedClientID else { return }
-        let followUp = FollowUp(
-            clientID: clientID,
-            note: note.trimmingCharacters(in: .whitespaces),
-            dueAt: dueAt
-        )
-        store.addFollowUp(followUp)
-        ReminderService().schedule(followUp)
+        let trimmedNote = note.trimmingCharacters(in: .whitespaces)
+
+        if let editingFollowUp {
+            var updated = editingFollowUp
+            updated.clientID = clientID
+            updated.note = trimmedNote
+            updated.dueAt = dueAt
+            store.updateFollowUp(updated)
+        } else {
+            let followUp = FollowUp(clientID: clientID, note: trimmedNote, dueAt: dueAt)
+            store.addFollowUp(followUp)
+            ReminderService().schedule(followUp)
+        }
         dismiss()
     }
 }

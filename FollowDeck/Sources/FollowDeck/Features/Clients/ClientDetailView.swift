@@ -13,6 +13,7 @@ struct ClientDetailView: View {
     let clientID: UUID
     @State private var showingAddFollowUp = false
     @State private var showingAddInteraction = false
+    @State private var showingEditClient = false
 
     private var client: Client? { store.client(id: clientID) }
     private var followUps: [FollowUp] {
@@ -83,8 +84,10 @@ struct ClientDetailView: View {
                 Menu {
                     Button("Add follow-up") { showingAddFollowUp = true }
                     Button("Log interaction") { showingAddInteraction = true }
+                    Divider()
+                    Button("Edit client") { showingEditClient = true }
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("Manage", systemImage: "ellipsis.circle")
                 }
             }
         }
@@ -93,6 +96,9 @@ struct ClientDetailView: View {
         }
         .sheet(isPresented: $showingAddInteraction) {
             AddInteractionView(preselectedClientID: clientID)
+        }
+        .sheet(isPresented: $showingEditClient) {
+            if let client { AddClientView(client: client) }
         }
     }
 }
