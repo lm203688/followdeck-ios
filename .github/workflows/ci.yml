@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Pipeline mode"
+        required: true
+        default: compile
+        type: choice
+        options:
+          - compile   # build + unit tests on the simulator, no signing
+          - dry_run   # build, sign, upload to TestFlight; do not submit (needs signing secrets)
+          - release   # sign, upload and submit for review (needs signing secrets)
+
+env:
+  SCHEME: FollowDeck
+  XCODEGEN_VERSION: "2.48.0"
+
+jobs:
+  validate:
+    name: Validate structure & secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Required paths exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in \
+            "project.yml" \
+            "FollowDeck/Sources/FollowDeck/Info.plist" \
+            "FollowDeck/Sources/FollowDeck/Models/Models.swift" \
+            "FollowDeck/Sources/FollowDeck/Services/Store.swift" \
+            "FollowDeck/Sources/FollowDeck/App/FollowDeckApp.swift" \
+            "README.md"; do
+            test -f "$p" || { echo "Missing required path: $p"; exit 1; }
+          done
+
+      - name: Scan for committed secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --exclude-dir=.git \
+            -e "BEGIN [A-Z ]*PRIVATE KEY" \
+            -e "github_pat_[A-Za-z0-9_]{20,}" \
+            -e "ghp_[A-Za-z0-9]{20,}" \
+            -e "gho_[A-Za-z0-9]{20,}" \
+            -e "-----BEGIN" \
+            FollowDeck .github project.yml 2>/dev/null; then
+            echo "::error::Possible secret committed to source. Remove it before merging."
+            exit 1
+          fi
+          echo "No obvious secret patterns in source."
+
+      - name: Validate YAML
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, yaml, sys
+          ok = True
+          for f in glob.glob(".github/workflows/*.yml") + ["project.yml"]:
+              try:
+                  yaml.safe_load(open(f, encoding="utf-8"))
+                  print("valid:", f)
+              except Exception as e:
+                  print("invalid:", f, e); ok = False
+          sys.exit(0 if ok else 1)
+
+  macos-build:
+    name: macOS build (${{ github.event.inputs.action || 'compile' }})
+    runs-on: macos-15
+    timeout-minutes: 90
+    # dry_run / release require signing secrets; compile runs on every push.
+    if: github.event_name != 'pull_request' || github.event.inputs.action == ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest usable Xcode
+        run: |
+          set -euo pipefail
+          chosen=""
+          # List every installed Xcode*.app, prefer the one whose toolchain is intact, newest first.
+          for app in $(ls -d /Applications/Xcode*.app 2>/dev/null | sort -Vr); do
+            if [ -d "$app/Contents/Developer" ]; then chosen="$app"; break; fi
+          done
+          if [ -z "$chosen" ]; then
+            echo "::error::No usable Xcode toolchain. Installed:"; ls /Applications | grep -i xcode; exit 1
+          fi
+          echo "Selected: $chosen"
+          sudo xcode-select -s "$chosen/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        uses: maxim-lobanov/setup-xcodegen@v1
+        with:
+          xcodegen-version: ${{ env.XCODEGEN_VERSION }}
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick newest available iPhone simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          name=$(xcrun simctl list devices available \
+            | grep -oE "iPhone [0-9]+ Pro Max" | sort -Vr | head -1)
+          if [ -z "$name" ]; then
+            name=$(xcrun simctl list devices available | grep -oE "iPhone [0-9]+" | sort -Vr | head -1)
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Simulator: $name"
+
+      - name: Build for simulator (compile)
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project FollowDeck.xcodeproj \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -configuration Debug \
+            -quiet
+
+      # --- Signing, upload and submit (enabled once secrets are provisioned) ---
+      # Required GitHub secrets (never committed):
+      #   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT (.p8, base64)
+      #   DIST_CERT_P12 (base64), DIST_CERT_PASSWORD
+      # The distribution certificate + private key are generated once on Windows via the
+      # App Store Connect API and stored as a secret; CI only imports them. Do not let CI
+      # create the certificate, or orphaned certs consume the account's certificate limit.
+      - name: Sign and upload (dry_run / release)
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ]; then
+            echo "::error::Signing secrets are not provisioned yet. Provide ASC and certificate secrets, then re-run dry_run/release."
+            exit 1
+          fi
+          # TODO(M1): import certificate into a throwaway keychain (set-key-partition-list
+          # required to avoid a hanging codesign prompt), resolve the distribution
+          # provisioning profile, archive, export and upload via fastlane/ASC API.
+          echo "Signing/upload lane is scaffolded; implement after secrets are set."
