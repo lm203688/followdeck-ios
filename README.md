@@ -3,7 +3,7 @@
 > A deal-stage follow-up copilot for independent service providers: track where each client sits in the
 > proposal → quote → contract → delivery → invoice → payment flow, and never drop a commitment or a late payment again.
 
-**Status:** M1 local-first MVP feature-complete: clients, follow-ups, deals and interactions with add / edit / complete / cascade delete, local reminders, next-step suggestions, and App Intents entity pickers. Compiles and unit-tests green on the cloud macOS runner. No signed / uploaded build yet.
+**Status:** M1 local-first MVP: clients, follow-ups, deals and interactions with add / edit / complete / cascade delete, local reminders, rule-based next-step suggestions, client search, and App Intents entity pickers. A 1024 placeholder icon is included; the final brand icon is pending. Compiles and unit-tests green on the cloud macOS runner. No signed / uploaded build yet.
 
 ## Fixed product constraints (locked)
 
