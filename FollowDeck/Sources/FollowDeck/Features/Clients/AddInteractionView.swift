@@ -52,7 +52,7 @@ struct AddInteractionView: View {
                     }
                     Section("Interaction") {
                         Picker("Channel", selection: $channel) {
-                            ForEach(Channel.allCases) { item in
+                            ForEach(Channel.allCases, id: \.self) { item in
                                 Text(item.displayName).tag(item)
                             }
                         }
