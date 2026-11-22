@@ -16,7 +16,7 @@ enum FollowDeckIntentError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidID:   return "The provided identifier is not valid."
+        case .invalidID:     return "The provided identifier is not valid."
         case .missingEntity: return "No matching record was found."
         }
     }
@@ -80,17 +80,19 @@ struct ListUpNextIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let pending = await MainActor.run {
-            PersistenceController.shared.makeStore().pendingFollowUps()
+        let text = await MainActor.run { () -> String in
+            let store = PersistenceController.shared.makeStore()
+            let pending = store.pendingFollowUps()
+            if pending.isEmpty {
+                return "You have no follow-ups due right now."
+            }
+            let top = pending.prefix(5).map { item -> String in
+                let client = store.client(id: item.clientID)?.name ?? "a client"
+                return "\(client): \(item.note)"
+            }
+            return "Up next: \(top.joined(separator: ". "))."
         }
-        if pending.isEmpty {
-            return .result(dialog: "You have no follow-ups due right now.")
-        }
-        let top = pending.prefix(5).map { item in
-            let client = PersistenceController.shared.makeStore().client(id: item.clientID)?.name ?? "a client"
-            return "\(client): \(item.note)"
-        }
-        return .result(dialog: Dialog("Up next: \(top.joined(separator: ". "))."))
+        return .result(dialog: text)
     }
 }
 
@@ -121,17 +123,17 @@ struct ClientStatusIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let id = UUID(uuidString: clientID) else { throw FollowDeckIntentError.invalidID }
-        let dialog = try await MainActor.run { () -> Dialog in
+        let text = try await MainActor.run { () -> String in
             let store = PersistenceController.shared.makeStore()
             guard let client = store.client(id: id) else { throw FollowDeckIntentError.missingEntity }
             let deals = store.deals(for: id)
             if deals.isEmpty {
-                return Dialog("\(client.name) has no active deal yet.")
+                return "\(client.name) has no active deal yet."
             }
             let summary = deals.map { "\($0.title), stage \($0.stage.displayName)" }
-            return Dialog("\(client.name): \(summary.joined(separator: "; ")).")
+            return "\(client.name): \(summary.joined(separator: "; "))."
         }
-        return .result(dialog: dialog)
+        return .result(dialog: text)
     }
 }
 
@@ -145,12 +147,12 @@ struct SuggestNextStepIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let id = UUID(uuidString: dealID) else { throw FollowDeckIntentError.invalidID }
-        let suggestion = try await MainActor.run { () -> NextStepSuggestion in
+        let (deal, history) = try await MainActor.run { () -> (Deal, [Interaction]) in
             let store = PersistenceController.shared.makeStore()
             guard let deal = store.allDeals().first(where: { $0.id == id }) else { throw FollowDeckIntentError.missingEntity }
-            let history = store.interactions(for: deal.clientID)
-            return try AIService().suggestNextStep(for: deal, history: history)
+            return (deal, store.interactions(for: deal.clientID))
         }
-        return .result(dialog: Dialog("\(suggestion.action) Suggested for \(DisplayFormat.date(suggestion.suggestedDueAt))."))
+        let suggestion = try await AIService().suggestNextStep(for: deal, history: history)
+        return .result(dialog: "\(suggestion.action) Suggested for \(DisplayFormat.date(suggestion.suggestedDueAt)).")
     }
 }
