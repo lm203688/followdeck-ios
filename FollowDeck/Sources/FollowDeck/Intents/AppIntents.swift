@@ -28,13 +28,13 @@ struct LogInteractionIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(title: "Client")
-    var clientID: String
+    var client: ClientEntity
 
     @Parameter(title: "Summary")
     var summary: String
 
     func perform() async throws -> some IntentResult {
-        guard let id = UUID(uuidString: clientID) else { throw FollowDeckIntentError.invalidID }
+        let id = client.id
         try await MainActor.run {
             let store = PersistenceController.shared.makeStore()
             guard var client = store.client(id: id) else { throw FollowDeckIntentError.missingEntity }
@@ -53,7 +53,7 @@ struct AddFollowUpIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(title: "Client")
-    var clientID: String
+    var client: ClientEntity
 
     @Parameter(title: "Note")
     var note: String
@@ -62,7 +62,7 @@ struct AddFollowUpIntent: AppIntent {
     var dueAt: Date
 
     func perform() async throws -> some IntentResult {
-        guard let id = UUID(uuidString: clientID) else { throw FollowDeckIntentError.invalidID }
+        let id = client.id
         try await MainActor.run {
             let store = PersistenceController.shared.makeStore()
             guard store.client(id: id) != nil else { throw FollowDeckIntentError.missingEntity }
@@ -102,10 +102,10 @@ struct CompleteFollowUpIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(title: "Follow-up")
-    var followUpID: String
+    var followUp: FollowUpEntity
 
     func perform() async throws -> some IntentResult {
-        guard let id = UUID(uuidString: followUpID) else { throw FollowDeckIntentError.invalidID }
+        let id = followUp.id
         await MainActor.run {
             let store = PersistenceController.shared.makeStore()
             store.completeFollowUp(id: id, at: Date())
@@ -121,10 +121,10 @@ struct ClientStatusIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(title: "Client")
-    var clientID: String
+    var client: ClientEntity
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard let id = UUID(uuidString: clientID) else { throw FollowDeckIntentError.invalidID }
+        let id = client.id
         let text = try await MainActor.run { () -> String in
             let store = PersistenceController.shared.makeStore()
             guard let client = store.client(id: id) else { throw FollowDeckIntentError.missingEntity }
@@ -145,10 +145,10 @@ struct SuggestNextStepIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     @Parameter(title: "Deal")
-    var dealID: String
+    var deal: DealEntity
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard let id = UUID(uuidString: dealID) else { throw FollowDeckIntentError.invalidID }
+        let id = deal.id
         let (deal, history) = try await MainActor.run { () -> (Deal, [Interaction]) in
             let store = PersistenceController.shared.makeStore()
             guard let deal = store.allDeals().first(where: { $0.id == id }) else { throw FollowDeckIntentError.missingEntity }
