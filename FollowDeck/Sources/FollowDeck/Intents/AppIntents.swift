@@ -92,7 +92,7 @@ struct ListUpNextIntent: AppIntent {
             }
             return "Up next: \(top.joined(separator: ". "))."
         }
-        return .result(dialog: text)
+        return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: text)))
     }
 }
 
@@ -106,7 +106,7 @@ struct CompleteFollowUpIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         guard let id = UUID(uuidString: followUpID) else { throw FollowDeckIntentError.invalidID }
-        try await MainActor.run {
+        await MainActor.run {
             PersistenceController.shared.makeStore().completeFollowUp(id: id, at: Date())
         }
         return .result()
@@ -133,7 +133,7 @@ struct ClientStatusIntent: AppIntent {
             let summary = deals.map { "\($0.title), stage \($0.stage.displayName)" }
             return "\(client.name): \(summary.joined(separator: "; "))."
         }
-        return .result(dialog: text)
+        return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: text)))
     }
 }
 
@@ -153,6 +153,7 @@ struct SuggestNextStepIntent: AppIntent {
             return (deal, store.interactions(for: deal.clientID))
         }
         let suggestion = try await AIService().suggestNextStep(for: deal, history: history)
-        return .result(dialog: "\(suggestion.action) Suggested for \(DisplayFormat.date(suggestion.suggestedDueAt)).")
+        let message = "\(suggestion.action) Suggested for \(DisplayFormat.date(suggestion.suggestedDueAt))."
+        return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: message)))
     }
 }
