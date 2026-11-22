@@ -68,7 +68,7 @@ struct AddFollowUpIntent: AppIntent {
             guard store.client(id: id) != nil else { throw FollowDeckIntentError.missingEntity }
             let followUp = FollowUp(clientID: id, note: note, dueAt: dueAt)
             store.addFollowUp(followUp)
-            ReminderService().schedule(followUp)
+            ReminderService.shared.schedule(followUp)
         }
         return .result()
     }
@@ -107,7 +107,9 @@ struct CompleteFollowUpIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         guard let id = UUID(uuidString: followUpID) else { throw FollowDeckIntentError.invalidID }
         await MainActor.run {
-            PersistenceController.shared.makeStore().completeFollowUp(id: id, at: Date())
+            let store = PersistenceController.shared.makeStore()
+            store.completeFollowUp(id: id, at: Date())
+            ReminderService.shared.cancel(id: id)
         }
         return .result()
     }

@@ -112,9 +112,11 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
 @MainActor
 final class StoreBridge: ObservableObject {
     let store: StoreProtocol
+    private let reminder: ReminderServiceProtocol
 
-    init(store: StoreProtocol) {
+    init(store: StoreProtocol, reminder: ReminderServiceProtocol = ReminderService.shared) {
         self.store = store
+        self.reminder = reminder
     }
 
     // MARK: Clients
@@ -122,7 +124,11 @@ final class StoreBridge: ObservableObject {
     func client(id: UUID) -> Client? { store.client(id: id) }
     func addClient(_ client: Client) { objectWillChange.send(); store.addClient(client) }
     func updateClient(_ client: Client) { objectWillChange.send(); store.updateClient(client) }
-    func deleteClient(id: UUID) { objectWillChange.send(); store.deleteClient(id: id) }
+    func deleteClient(id: UUID) {
+        objectWillChange.send()
+        store.allFollowUps().filter { $0.clientID == id }.forEach { reminder.cancel(id: $0.id) }
+        store.deleteClient(id: id)
+    }
 
     // MARK: Deals
     func allDeals() -> [Deal] { store.allDeals() }
@@ -134,10 +140,10 @@ final class StoreBridge: ObservableObject {
     // MARK: Follow-ups
     func pendingFollowUps() -> [FollowUp] { store.pendingFollowUps() }
     func allFollowUps() -> [FollowUp] { store.allFollowUps() }
-    func addFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.addFollowUp(followUp) }
-    func updateFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.updateFollowUp(followUp) }
-    func completeFollowUp(id: UUID, at: Date) { objectWillChange.send(); store.completeFollowUp(id: id, at: at) }
-    func deleteFollowUp(id: UUID) { objectWillChange.send(); store.deleteFollowUp(id: id) }
+    func addFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.addFollowUp(followUp); reminder.schedule(followUp) }
+    func updateFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.updateFollowUp(followUp); reminder.reschedule(followUp) }
+    func completeFollowUp(id: UUID, at: Date) { objectWillChange.send(); store.completeFollowUp(id: id, at: at); reminder.cancel(id: id) }
+    func deleteFollowUp(id: UUID) { objectWillChange.send(); store.deleteFollowUp(id: id); reminder.cancel(id: id) }
 
     // MARK: Interactions
     func addInteraction(_ interaction: Interaction) { objectWillChange.send(); store.addInteraction(interaction) }
