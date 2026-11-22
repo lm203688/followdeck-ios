@@ -12,12 +12,14 @@ struct ClientDetailView: View {
     @EnvironmentObject private var store: StoreBridge
     let clientID: UUID
     @State private var showingAddFollowUp = false
+    @State private var showingAddInteraction = false
 
     private var client: Client? { store.client(id: clientID) }
     private var followUps: [FollowUp] {
         store.allFollowUps().filter { $0.clientID == clientID }
     }
     private var deals: [Deal] { store.deals(for: clientID) }
+    private var interactions: [Interaction] { store.interactions(for: clientID) }
 
     var body: some View {
         List {
@@ -57,6 +59,16 @@ struct ClientDetailView: View {
                         }
                     }
                 }
+
+                Section("Interactions (\(interactions.count))") {
+                    if interactions.isEmpty {
+                        Text("No interactions logged yet.").foregroundColor(.secondary)
+                    } else {
+                        ForEach(interactions) { item in
+                            InteractionRow(interaction: item)
+                        }
+                    }
+                }
             } else {
                 ContentUnavailableView(
                     "Client not found",
@@ -68,15 +80,38 @@ struct ClientDetailView: View {
         .navigationTitle(client?.name ?? "Client")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingAddFollowUp = true
+                Menu {
+                    Button("Add follow-up") { showingAddFollowUp = true }
+                    Button("Log interaction") { showingAddInteraction = true }
                 } label: {
-                    Label("Add follow-up", systemImage: "plus")
+                    Label("Add", systemImage: "plus")
                 }
             }
         }
         .sheet(isPresented: $showingAddFollowUp) {
             AddFollowUpView(preselectedClientID: clientID)
+        }
+        .sheet(isPresented: $showingAddInteraction) {
+            AddInteractionView(preselectedClientID: clientID)
+        }
+    }
+}
+
+private struct InteractionRow: View {
+    let interaction: Interaction
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(interaction.channel.displayName).font(.headline)
+                Spacer()
+                Text(DisplayFormat.dateTime(interaction.date))
+                    .font(.caption).foregroundColor(.secondary)
+            }
+            Text(interaction.summary).font(.subheadline).lineLimit(3)
+            if let duration = interaction.durationMinutes {
+                Text("\(duration) min").font(.caption).foregroundColor(.secondary)
+            }
         }
     }
 }
