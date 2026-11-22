@@ -2,11 +2,13 @@
 //  ReminderService.swift
 //  FollowDeck
 //
-//  Local notification scheduling for follow-ups. Wires to UNUserNotificationCenter
-//  in the Xcode project on macOS; deep links open the related deal/client.
+//  Local notification scheduling for follow-ups. Uses UNUserNotificationCenter;
+//  notifications carry deep-link userInfo so a tap can open the related record.
+//  Scheduling is local-only — no push provider, no server.
 //
 
 import Foundation
+import UserNotifications
 
 protocol ReminderServiceProtocol: AnyObject {
     func requestAuthorization() async throws
@@ -16,17 +18,49 @@ protocol ReminderServiceProtocol: AnyObject {
 }
 
 final class ReminderService: ReminderServiceProtocol {
+    static let shared = ReminderService()
+
+    private let center: UNUserNotificationCenter
+
+    init(center: UNUserNotificationCenter = .current()) {
+        self.center = center
+    }
+
     func requestAuthorization() async throws {
-        // TODO(macOS): UNUserNotificationCenter.current().requestAuthorization(options:[.alert,.sound,.badge])
+        _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
     func schedule(_ followUp: FollowUp) {
-        // TODO(macOS): build UNCalendarNotificationTrigger, identifier = followUp.id.uuidString,
-        // deep-link userInfo ["dealID": ..., "clientID": ...].
+        // Only pending follow-ups with a future due date are scheduled.
+        guard followUp.status == .pending, followUp.dueAt > Date() else {
+            cancel(id: followUp.id)
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Follow-up reminder"
+        content.body = followUp.note
+        content.userInfo = [
+            "followUpID": followUp.id.uuidString,
+            "clientID": followUp.clientID.uuidString
+        ]
+
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: followUp.dueAt
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: followUp.id.uuidString,
+            content: content,
+            trigger: trigger
+        )
+
+        center.add(request) { _ in }
     }
 
     func cancel(id: UUID) {
-        // TODO(macOS): removePendingNotificationRequests(withIdentifiers: [id.uuidString])
+        center.removePendingNotificationRequests(withIdentifiers: [id.uuidString])
     }
 
     func reschedule(_ followUp: FollowUp) {

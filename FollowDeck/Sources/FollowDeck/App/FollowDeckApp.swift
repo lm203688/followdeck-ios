@@ -40,5 +40,8 @@ struct RootView: View {
             FollowUpsView()
                 .tabItem { Label("Follow-ups", systemImage: "list.bullet") }
         }
+        .onAppear {
+            Task { try? await ReminderService.shared.requestAuthorization() }
+        }
     }
 }
