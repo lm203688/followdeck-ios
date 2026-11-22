@@ -66,6 +66,20 @@ struct DealRow: View {
         store.client(id: deal.clientID)?.name ?? "Unknown client"
     }
 
+    private var risk: DealRisk { RiskInsights.risk(for: deal) }
+
+    private var riskLabel: (text: String, color: Color)? {
+        switch risk.level {
+        case .high:
+            if deal.stage == .atRisk { return ("At Risk", .red) }
+            return ("Stalled \(risk.daysStale)d", .red)
+        case .medium:
+            return ("Stalled", .orange)
+        case .low, .none:
+            return nil
+        }
+    }
+
     private var amountText: String? {
         guard let amount = deal.amount else { return nil }
         let formatter = NumberFormatter()
@@ -95,6 +109,10 @@ struct DealRow: View {
             Text(clientName).font(.subheadline)
             HStack(spacing: 8) {
                 Text(deal.stage.displayName).font(.caption)
+                if let riskLabel {
+                    Label(riskLabel.text, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(riskLabel.color)
+                }
                 if let nextDueAt = deal.nextDueAt {
                     Label(DisplayFormat.date(nextDueAt), systemImage: "calendar")
                 }

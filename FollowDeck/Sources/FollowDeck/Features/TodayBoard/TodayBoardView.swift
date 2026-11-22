@@ -12,22 +12,15 @@ struct TodayBoardView: View {
     @EnvironmentObject private var store: StoreBridge
 
     private var overdue: [FollowUp] {
-        let startOfToday = Calendar.current.startOfDay(for: Date())
-        return store.pendingFollowUps().filter { $0.dueAt < startOfToday }
+        store.pendingFollowUps().filter { RiskInsights.bucket(for: $0) == .overdue }
     }
 
     private var today: [FollowUp] {
-        let cal = Calendar.current
-        let startOfToday = cal.startOfDay(for: Date())
-        let startOfTomorrow = cal.date(byAdding: .day, value: 1, to: startOfToday) ?? startOfToday
-        return store.pendingFollowUps().filter { $0.dueAt >= startOfToday && $0.dueAt < startOfTomorrow }
+        store.pendingFollowUps().filter { RiskInsights.bucket(for: $0) == .today }
     }
 
     private var upcoming: [FollowUp] {
-        let cal = Calendar.current
-        let startOfToday = cal.startOfDay(for: Date())
-        let startOfTomorrow = cal.date(byAdding: .day, value: 1, to: startOfToday) ?? startOfToday
-        return store.pendingFollowUps().filter { $0.dueAt >= startOfTomorrow }
+        store.pendingFollowUps().filter { RiskInsights.bucket(for: $0) == .upcoming }
     }
 
     var body: some View {
