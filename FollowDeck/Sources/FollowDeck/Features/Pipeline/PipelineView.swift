@@ -10,6 +10,7 @@ import SwiftUI
 
 struct PipelineView: View {
     @EnvironmentObject private var store: StoreBridge
+    @State private var showingAddDeal = false
 
     private var deals: [Deal] { store.allDeals() }
 
@@ -28,6 +29,18 @@ struct PipelineView: View {
                 }
             }
             .navigationTitle("Pipeline")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingAddDeal = true
+                    } label: {
+                        Label("Add deal", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddDeal) {
+                AddDealView()
+            }
             .overlay {
                 if deals.isEmpty {
                     ContentUnavailableView(
