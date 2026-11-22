@@ -46,4 +46,6 @@ schemes:
     build:
       targets:
         FollowDeck: [run]
-        FollowDeckTests: [test]
+    test:
+      targets:
+        - FollowDeckTests
