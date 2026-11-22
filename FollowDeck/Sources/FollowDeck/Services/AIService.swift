@@ -44,6 +44,6 @@ final class AIService: AIServiceProtocol {
 
     func draftReengagementMessage(for client: Client, context: String) async throws -> String {
         // TODO(macOS): produce an editable draft; never auto-send.
-        "Hi \(client.name), just checking in on \(context). Let me know if you need anything from me."
+        return "Hi \(client.name), just checking in on \(context). Let me know if you need anything from me."
     }
 }

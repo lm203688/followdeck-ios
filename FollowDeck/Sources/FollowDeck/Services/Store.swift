@@ -35,53 +35,53 @@ protocol StoreProtocol: AnyObject {
 
 /// In-memory placeholder used until the persistence layer is wired on macOS.
 final class InMemoryStore: ObservableObject, StoreProtocol {
-    private var clients: [Client] = []
-    private var deals: [Deal] = []
-    private var followUps: [FollowUp] = []
-    private var interactions: [Interaction] = []
+    private var clientList: [Client] = []
+    private var dealList: [Deal] = []
+    private var followUpList: [FollowUp] = []
+    private var interactionList: [Interaction] = []
 
-    func clients() -> [Client] { clients }
+    func clients() -> [Client] { clientList }
 
-    func addClient(_ client: Client) { clients.append(client) }
+    func addClient(_ client: Client) { clientList.append(client) }
 
     func updateClient(_ client: Client) {
-        guard let index = clients.firstIndex(where: { $0.id == client.id }) else { return }
-        clients[index] = client
+        guard let index = clientList.firstIndex(where: { $0.id == client.id }) else { return }
+        clientList[index] = client
     }
 
-    func deleteClient(id: UUID) { clients.removeAll { $0.id == id } }
+    func deleteClient(id: UUID) { clientList.removeAll { $0.id == id } }
 
-    func deals(for clientID: UUID) -> [Deal] { deals.filter { $0.clientID == clientID } }
+    func deals(for clientID: UUID) -> [Deal] { dealList.filter { $0.clientID == clientID } }
 
-    func addDeal(_ deal: Deal) { deals.append(deal) }
+    func addDeal(_ deal: Deal) { dealList.append(deal) }
 
     func updateDeal(_ deal: Deal) {
-        guard let index = deals.firstIndex(where: { $0.id == deal.id }) else { return }
-        deals[index] = deal
+        guard let index = dealList.firstIndex(where: { $0.id == deal.id }) else { return }
+        dealList[index] = deal
     }
 
-    func deleteDeal(id: UUID) { deals.removeAll { $0.id == id } }
+    func deleteDeal(id: UUID) { dealList.removeAll { $0.id == id } }
 
     func pendingFollowUps() -> [FollowUp] {
-        followUps.filter { $0.status == .pending }.sorted { $0.dueAt < $1.dueAt }
+        followUpList.filter { $0.status == .pending }.sorted { $0.dueAt < $1.dueAt }
     }
 
-    func addFollowUp(_ followUp: FollowUp) { followUps.append(followUp) }
+    func addFollowUp(_ followUp: FollowUp) { followUpList.append(followUp) }
 
     func updateFollowUp(_ followUp: FollowUp) {
-        guard let index = followUps.firstIndex(where: { $0.id == followUp.id }) else { return }
-        followUps[index] = followUp
+        guard let index = followUpList.firstIndex(where: { $0.id == followUp.id }) else { return }
+        followUpList[index] = followUp
     }
 
     func completeFollowUp(id: UUID, at: Date) {
-        guard let index = followUps.firstIndex(where: { $0.id == id }) else { return }
-        followUps[index].status = .done
-        followUps[index].completedAt = at
+        guard let index = followUpList.firstIndex(where: { $0.id == id }) else { return }
+        followUpList[index].status = .done
+        followUpList[index].completedAt = at
     }
 
-    func addInteraction(_ interaction: Interaction) { interactions.append(interaction) }
+    func addInteraction(_ interaction: Interaction) { interactionList.append(interaction) }
 
     func interactions(for clientID: UUID) -> [Interaction] {
-        interactions.filter { $0.clientID == clientID }.sorted { $0.date > $1.date }
+        interactionList.filter { $0.clientID == clientID }.sorted { $0.date > $1.date }
     }
 }
