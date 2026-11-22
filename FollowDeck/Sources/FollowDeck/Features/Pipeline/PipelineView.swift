@@ -60,6 +60,7 @@ struct PipelineView: View {
 struct DealRow: View {
     @EnvironmentObject private var store: StoreBridge
     let deal: Deal
+    var onEdit: (() -> Void)? = nil
 
     private var clientName: String {
         store.client(id: deal.clientID)?.name ?? "Unknown client"
@@ -78,6 +79,17 @@ struct DealRow: View {
             HStack {
                 Text(deal.title).font(.headline)
                 Spacer()
+                if let onEdit {
+                    Button {
+                        onEdit()
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Edit deal")
+                }
                 if let amountText { Text(amountText).font(.subheadline).foregroundColor(.secondary) }
             }
             Text(clientName).font(.subheadline)

@@ -68,6 +68,7 @@ struct FollowUpRow: View {
     @EnvironmentObject private var store: StoreBridge
     let followUp: FollowUp
     let tint: Color
+    var onEdit: (() -> Void)? = nil
 
     private var clientName: String {
         store.client(id: followUp.clientID)?.name ?? "Unknown client"
@@ -88,16 +89,29 @@ struct FollowUpRow: View {
                 .font(.caption).foregroundColor(.secondary)
             }
             Spacer()
-            Button {
-                store.completeFollowUp(id: followUp.id, at: Date())
-            } label: {
-                Image(systemName: followUp.status == .done ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(followUp.status == .done ? .green : .secondary)
+            HStack(spacing: 12) {
+                if let onEdit {
+                    Button {
+                        onEdit()
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Edit follow-up")
+                }
+                Button {
+                    store.completeFollowUp(id: followUp.id, at: Date())
+                } label: {
+                    Image(systemName: followUp.status == .done ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(followUp.status == .done ? .green : .secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(followUp.status == .done ? "Completed" : "Mark as done")
+                .disabled(followUp.status == .done)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(followUp.status == .done ? "Completed" : "Mark as done")
-            .disabled(followUp.status == .done)
         }
     }
 }

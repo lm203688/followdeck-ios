@@ -14,6 +14,8 @@ struct ClientDetailView: View {
     @State private var showingAddFollowUp = false
     @State private var showingAddInteraction = false
     @State private var showingEditClient = false
+    @State private var editingFollowUp: FollowUp?
+    @State private var editingDeal: Deal?
 
     private var client: Client? { store.client(id: clientID) }
     private var followUps: [FollowUp] {
@@ -46,7 +48,7 @@ struct ClientDetailView: View {
                         Text("No follow-ups yet.").foregroundColor(.secondary)
                     } else {
                         ForEach(followUps) { item in
-                            FollowUpRow(followUp: item, tint: .blue)
+                            FollowUpRow(followUp: item, tint: .blue, onEdit: { editingFollowUp = item })
                         }
                     }
                 }
@@ -56,7 +58,7 @@ struct ClientDetailView: View {
                         Text("No deals yet.").foregroundColor(.secondary)
                     } else {
                         ForEach(deals) { deal in
-                            DealRow(deal: deal)
+                            DealRow(deal: deal, onEdit: { editingDeal = deal })
                         }
                     }
                 }
@@ -99,6 +101,12 @@ struct ClientDetailView: View {
         }
         .sheet(isPresented: $showingEditClient) {
             if let client { AddClientView(client: client) }
+        }
+        .sheet(item: $editingFollowUp) { followUp in
+            AddFollowUpView(followUp: followUp)
+        }
+        .sheet(item: $editingDeal) { deal in
+            AddDealView(deal: deal)
         }
     }
 }
