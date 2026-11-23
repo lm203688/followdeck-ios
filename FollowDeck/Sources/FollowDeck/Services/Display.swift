@@ -71,4 +71,15 @@ enum DisplayFormat {
         formatter.currencyCode = currency ?? "USD"
         return formatter.string(from: value as NSNumber)
     }
+
+    static func relativeDue(_ relative: RelativeDue) -> String {
+        switch relative {
+        case .overdue(let days):
+            return "Overdue \(days)d"
+        case .today:
+            return "Due today"
+        case .upcoming(let days):
+            return days == 1 ? "Tomorrow" : "In \(days)d"
+        }
+    }
 }

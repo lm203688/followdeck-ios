@@ -26,6 +26,21 @@ final class RiskInsightsTests: XCTestCase {
 
     // MARK: - Deal risk levels
 
+    func testRelativeDueOverdueTodayUpcoming() {
+        let startToday = calendar.startOfDay(for: now)
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: startToday)!
+        let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: startToday)!
+        let laterToday = calendar.date(byAdding: .hour, value: 2, to: startToday)!
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: startToday)!
+        let fiveDaysAhead = calendar.date(byAdding: .day, value: 5, to: startToday)!
+
+        XCTAssertEqual(RiskInsights.relativeDue(for: yesterday, now: now), .overdue(days: 1))
+        XCTAssertEqual(RiskInsights.relativeDue(for: threeDaysAgo, now: now), .overdue(days: 3))
+        XCTAssertEqual(RiskInsights.relativeDue(for: laterToday, now: now), .today)
+        XCTAssertEqual(RiskInsights.relativeDue(for: tomorrow, now: now), .upcoming(days: 1))
+        XCTAssertEqual(RiskInsights.relativeDue(for: fiveDaysAhead, now: now), .upcoming(days: 5))
+    }
+
     func testPaidAndClosedAreNone() {
         let paid = Deal(clientID: UUID(), title: "Paid", stage: .paid, updatedAt: now)
         let closed = Deal(clientID: UUID(), title: "Closed", stage: .closed, updatedAt: now)

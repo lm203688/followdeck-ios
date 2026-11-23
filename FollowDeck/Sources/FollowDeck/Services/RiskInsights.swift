@@ -24,6 +24,13 @@ enum RiskLevel: String, Equatable {
     case high      // at-risk stage, or stalled past the threshold
 }
 
+/// Relative position of a follow-up's due date against today, in whole calendar days.
+enum RelativeDue: Equatable {
+    case overdue(days: Int)   // days > 0: how many days past the due date
+    case today                // due later today
+    case upcoming(days: Int)  // days > 0: how many days until it is due
+}
+
 struct DealRisk: Equatable {
     let daysStale: Int
     let level: RiskLevel
@@ -39,6 +46,19 @@ enum RiskInsights {
         if followUp.dueAt < startOfToday { return .overdue }
         if followUp.dueAt < startOfTomorrow { return .today }
         return .upcoming
+    }
+
+    /// Whole-calendar-day gap between a due date and today: negative means overdue,
+    /// zero means today, positive means upcoming. Day boundaries follow the given calendar.
+    static func relativeDue(for dueAt: Date,
+                            now: Date = Date(),
+                            calendar: Calendar = .current) -> RelativeDue {
+        let dueDay = calendar.startOfDay(for: dueAt)
+        let todayDay = calendar.startOfDay(for: now)
+        let diff = calendar.dateComponents([.day], from: todayDay, to: dueDay).day ?? 0
+        if diff < 0 { return .overdue(days: -diff) }
+        if diff == 0 { return .today }
+        return .upcoming(days: diff)
     }
 
     /// Derive dwell time and risk level for a deal.

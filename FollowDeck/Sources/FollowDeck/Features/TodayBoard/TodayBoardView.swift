@@ -111,6 +111,18 @@ struct FollowUpRow: View {
         store.client(id: followUp.clientID)?.name ?? "Unknown client"
     }
 
+    private var relative: RelativeDue {
+        RiskInsights.relativeDue(for: followUp.dueAt)
+    }
+
+    private var relativeColor: Color {
+        switch relative {
+        case .overdue: return .red
+        case .today: return .orange
+        case .upcoming: return .secondary
+        }
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             RoundedRectangle(cornerRadius: 4)
@@ -121,6 +133,8 @@ struct FollowUpRow: View {
                 Text(followUp.note).font(.subheadline).lineLimit(2)
                 HStack(spacing: 8) {
                     Label(DisplayFormat.dateTime(followUp.dueAt), systemImage: "clock")
+                    Text(DisplayFormat.relativeDue(relative))
+                        .foregroundColor(relativeColor)
                     Text(followUp.channel.displayName)
                 }
                 .font(.caption).foregroundColor(.secondary)
