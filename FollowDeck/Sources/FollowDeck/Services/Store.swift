@@ -156,13 +156,33 @@ final class StoreBridge: ObservableObject {
     func allFollowUps() -> [FollowUp] { store.allFollowUps() }
     func addFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.addFollowUp(followUp); reminder.schedule(followUp); refreshWidget() }
     func updateFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.updateFollowUp(followUp); reminder.reschedule(followUp); refreshWidget() }
-    func completeFollowUp(id: UUID, at: Date) { objectWillChange.send(); store.completeFollowUp(id: id, at: at); reminder.cancel(id: id); refreshWidget() }
+    func completeFollowUp(id: UUID, at: Date) {
+        objectWillChange.send()
+        let clientID = store.allFollowUps().first(where: { $0.id == id })?.clientID
+        store.completeFollowUp(id: id, at: at)
+        reminder.cancel(id: id)
+        if let clientID { touchClient(id: clientID, at: at) }
+        refreshWidget()
+    }
     func deleteFollowUp(id: UUID) { objectWillChange.send(); store.deleteFollowUp(id: id); reminder.cancel(id: id); refreshWidget() }
 
     // MARK: Interactions
-    func addInteraction(_ interaction: Interaction) { objectWillChange.send(); store.addInteraction(interaction) }
+    func addInteraction(_ interaction: Interaction) {
+        objectWillChange.send()
+        store.addInteraction(interaction)
+        touchClient(id: interaction.clientID, at: interaction.date)
+    }
     func interactions(for clientID: UUID) -> [Interaction] { store.interactions(for: clientID) }
     func allInteractions() -> [Interaction] { store.allInteractions() }
+
+    /// Advance the client's last-contacted time only when the event is more recent than the
+    /// stored value (or none was stored); older events never roll it back.
+    private func touchClient(id: UUID, at date: Date) {
+        guard var client = store.client(id: id) else { return }
+        guard client.lastContactedAt == nil || date > client.lastContactedAt! else { return }
+        client.lastContactedAt = date
+        store.updateClient(client)
+    }
 
     /// Rebuild the shared widget summary and ask the system to refresh active widgets.
     private func refreshWidget() {
