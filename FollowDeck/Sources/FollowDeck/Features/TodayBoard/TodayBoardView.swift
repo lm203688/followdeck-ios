@@ -10,6 +10,7 @@ import SwiftUI
 
 struct TodayBoardView: View {
     @EnvironmentObject private var store: StoreBridge
+    @State private var showingSettings = false
 
     private var stats: DashboardStats {
         DashboardStatsBuilder.stats(from: store.store)
@@ -36,6 +37,18 @@ struct TodayBoardView: View {
                 section(title: "Upcoming", items: upcoming, tint: .blue)
             }
             .navigationTitle("Today")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
             .overlay {
                 if store.pendingFollowUps().isEmpty {
                     ContentUnavailableView(
