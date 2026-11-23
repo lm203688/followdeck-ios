@@ -145,6 +145,18 @@ struct DealRow: View {
                 }
             }
             .font(.caption).foregroundColor(.secondary)
+            if let nextAction = deal.nextAction, !nextAction.isEmpty {
+                Label(nextAction, systemImage: "arrow.right.circle")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+            if !deal.ownerNote.isEmpty {
+                Text(deal.ownerNote)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
         }
     }
 }
