@@ -16,12 +16,7 @@ struct ClientsView: View {
     private var clients: [Client] { ClientSorter.sorted(store.clients()) }
 
     private var filteredClients: [Client] {
-        guard !searchText.isEmpty else { return clients }
-        let needle = searchText.lowercased()
-        return clients.filter {
-            $0.name.lowercased().contains(needle)
-            || ($0.email ?? "").lowercased().contains(needle)
-        }
+        ClientMatcher.filter(clients, query: searchText)
     }
 
     var body: some View {
