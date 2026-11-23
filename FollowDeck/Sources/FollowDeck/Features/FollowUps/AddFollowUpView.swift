@@ -84,7 +84,6 @@ struct AddFollowUpView: View {
         } else {
             let followUp = FollowUp(clientID: clientID, note: trimmedNote, dueAt: dueAt)
             store.addFollowUp(followUp)
-            ReminderService().schedule(followUp)
         }
         dismiss()
     }
