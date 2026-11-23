@@ -37,7 +37,7 @@ project spec here; a cloud macOS runner generates the `.xcodeproj` and compiles 
 4. Signing, TestFlight upload and review submission are scaffolded but stay disabled until the App Store Connect
    API key and distribution certificate are provisioned as GitHub secrets (never committed).
 
-See `docs/ROADMAP.md` for milestones and blocking dependencies, and `docs/engineering.md` for the source layout and layering rules.
+Milestones, blocking dependencies, the engineering guide and store copy live in the separate private docs repo (see Repository layout below).
 
 ## Repository layout
 

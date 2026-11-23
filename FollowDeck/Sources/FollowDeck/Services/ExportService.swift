@@ -58,17 +58,18 @@ struct ExportedFile: Equatable {
 /// Aggregates every local record from the store into an export snapshot and builds the
 /// shareable file. Pure Foundation logic; the share sheet / UI lives in the feature layer.
 enum ExportBuilder {
-    static func snapshot(from store: StoreProtocol) -> ExportSnapshot {
+    static func snapshot(from store: StoreProtocol, exportedAt: Date = Date()) -> ExportSnapshot {
         ExportService.snapshot(
             clients: store.clients(),
             deals: store.allDeals(),
             followUps: store.allFollowUps(),
-            interactions: store.allInteractions()
+            interactions: store.allInteractions(),
+            exportedAt: exportedAt
         )
     }
 
     static func makeFile(from store: StoreProtocol, date: Date = Date()) throws -> ExportedFile {
-        let snapshot = snapshot(from: store)
+        let snapshot = snapshot(from: store, exportedAt: date)
         let data = try ExportService.jsonData(for: snapshot)
         return ExportedFile(fileName: "followdeck-export-\(stamp(date)).json", data: data)
     }

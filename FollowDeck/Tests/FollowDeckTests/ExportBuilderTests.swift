@@ -56,14 +56,13 @@ final class ExportBuilderTests: XCTestCase {
         store.addClient(client)
         let deal = Deal(clientID: client.id, title: "Project")
         store.addDeal(deal)
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
 
-        let file = try ExportBuilder.makeFile(from: store)
+        let file = try ExportBuilder.makeFile(from: store, date: date)
         let decoded = try ExportService.snapshot(from: file.data)
 
         XCTAssertEqual(decoded.clients.map(\.id), [client.id])
         XCTAssertEqual(decoded.deals.map(\.id), [deal.id])
-        XCTAssertEqual(decoded.exportedAt.timeIntervalSince1970,
-                       ExportBuilder.snapshot(from: store).exportedAt.timeIntervalSince1970,
-                       accuracy: 1.0)
+        XCTAssertEqual(decoded.exportedAt, date)
     }
 }
