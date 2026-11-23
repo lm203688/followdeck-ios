@@ -43,27 +43,25 @@ See `docs/ROADMAP.md` for milestones and blocking dependencies, and `docs/engine
 
 ```
 .
-├── 00-备份台账/            # Backup registry: archived docs, asset ledger, secret index (no secret values)
 ├── project.yml             # XcodeGen spec; the .xcodeproj is generated on the CI runner, not committed
 ├── .github/workflows/ci.yml# Validate (Linux) + macOS simulator build; signing lane disabled pending secrets
-├── docs/
-│   ├── INTENTS.md          # App Intents / system integration manifest
-│   ├── IA-and-intents.md   # Screen map, wireframes, data model
-│   ├── store-metadata.md   # English App Store listing copy
-│   ├── privacy-policy-draft.md
-│   ├── geo-faq.md
-│   ├── engineering.md
-│   └── ROADMAP.md
 └── FollowDeck/
     ├── Sources/FollowDeck/
     │   ├── App/            # @main entry point
-    │   ├── Models/         # Data model
-    │   ├── Features/       # Pipeline / TodayBoard / Clients / FollowUps
-    │   ├── Services/       # Store, reminders, AI service
-    │   ├── Intents/        # App Intents
+    │   ├── Models/         # Codable data model
+    │   ├── Persistence/    # SwiftData container + store mapping
+    │   ├── Features/       # Pipeline / TodayBoard / Clients / FollowUps / Settings
+    │   ├── Services/       # Store, reminders, Spotlight, AI, risk/export/widget/deep-link/stats
+    │   ├── Intents/        # App Intents + entity queries
     │   └── Info.plist
+    ├── Shared/             # Cross-target widget snapshot
+    ├── Widgets/FollowDeckWidget/  # WidgetKit extension target
     └── Tests/FollowDeckTests/
 ```
+
+Strategy, research, pricing, compliance drafts, the backup ledger and `docs/` (ROADMAP, engineering guide,
+store copy, privacy draft) live in the separate private docs repo; this public repo holds source, spec, CI
+and this README only.
 
 ## Red lines
 
