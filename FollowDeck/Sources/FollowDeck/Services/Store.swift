@@ -185,6 +185,21 @@ final class StoreBridge: ObservableObject {
     func interactions(for clientID: UUID) -> [Interaction] { store.interactions(for: clientID) }
     func allInteractions() -> [Interaction] { store.allInteractions() }
 
+    /// Replace the whole library with a validated backup result; cancel reminders and
+    /// clear Spotlight for the outgoing records, then rebuild both for the restored set
+    /// and refresh the widget snapshot.
+    func restore(_ result: ImportResult) {
+        objectWillChange.send()
+        store.allFollowUps().forEach { reminder.cancel(id: $0.id) }
+        spotlight.removeAll()
+        store.replaceAll(clients: result.clients, deals: result.deals,
+                         followUps: result.followUps, interactions: result.interactions)
+        result.clients.forEach { spotlight.index(client: $0) }
+        result.deals.forEach { spotlight.index(deal: $0) }
+        result.followUps.forEach { reminder.schedule($0) }
+        refreshWidget()
+    }
+
     /// Advance the client's last-contacted time only when the event is more recent than the
     /// stored value (or none was stored); older events never roll it back.
     private func touchClient(id: UUID, at date: Date) {
