@@ -27,7 +27,9 @@ struct AddClientView: View {
     }
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
-    private var canSave: Bool { !trimmedName.isEmpty }
+    private var emailValid: Bool { FormValidators.isValidEmail(email) }
+    private var phoneValid: Bool { FormValidators.isValidPhone(phone) }
+    private var canSave: Bool { !trimmedName.isEmpty && emailValid && phoneValid }
 
     var body: some View {
         NavigationStack {
@@ -37,8 +39,18 @@ struct AddClientView: View {
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
+                    if !emailValid {
+                        Text("Enter a valid email, or leave it empty.")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                     TextField("Phone", text: $phone)
                         .keyboardType(.phonePad)
+                    if !phoneValid {
+                        Text("Use digits, spaces, +, - or parentheses.")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 }
                 Section("Tags") {
                     TextField("Comma-separated tags", text: $tagsText)
@@ -58,25 +70,22 @@ struct AddClientView: View {
     }
 
     private func save() {
-        let tags = tagsText
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        let emailTrimmed = email.trimmingCharacters(in: .whitespaces)
-        let phoneTrimmed = phone.trimmingCharacters(in: .whitespaces)
+        let tags = FormValidators.normalizedTags(tagsText)
+        let emailTrimmed = FormValidators.trimmedOptional(email)
+        let phoneTrimmed = FormValidators.trimmedOptional(phone)
 
         if let editingClient {
             var updated = editingClient
             updated.name = trimmedName
-            updated.email = emailTrimmed.isEmpty ? nil : emailTrimmed
-            updated.phone = phoneTrimmed.isEmpty ? nil : phoneTrimmed
+            updated.email = emailTrimmed
+            updated.phone = phoneTrimmed
             updated.tags = tags
             store.updateClient(updated)
         } else {
             let client = Client(
                 name: trimmedName,
-                phone: phoneTrimmed.isEmpty ? nil : phoneTrimmed,
-                email: emailTrimmed.isEmpty ? nil : emailTrimmed,
+                phone: phoneTrimmed,
+                email: emailTrimmed,
                 tags: tags
             )
             store.addClient(client)

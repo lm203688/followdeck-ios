@@ -29,15 +29,12 @@ struct AddDealView: View {
     private var clients: [Client] { store.clients() }
     private var trimmedTitle: String { title.trimmingCharacters(in: .whitespaces) }
 
-    private var amount: Decimal? {
-        let cleaned = amountText
-            .replacingOccurrences(of: ",", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        guard !cleaned.isEmpty else { return nil }
-        return Decimal(string: cleaned)
-    }
+    private var amount: Decimal? { FormValidators.parsedAmount(amountText) }
+    private var amountValid: Bool { FormValidators.isValidAmount(amountText) }
 
-    private var canSave: Bool { selectedClientID != nil && !trimmedTitle.isEmpty }
+    private var canSave: Bool {
+        selectedClientID != nil && !trimmedTitle.isEmpty && amountValid
+    }
 
     var body: some View {
         NavigationStack {
@@ -66,6 +63,11 @@ struct AddDealView: View {
                         }
                         TextField("Amount (optional)", text: $amountText)
                             .keyboardType(.decimalPad)
+                        if !amountValid {
+                            Text("Enter a number, or leave the amount empty.")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
                     }
                 }
             }
