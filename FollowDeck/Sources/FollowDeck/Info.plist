@@ -39,5 +39,16 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>FollowDeck deep link</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>followdeck</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
