@@ -36,6 +36,7 @@ private final class FakeSpotlight: SpotlightIndexerProtocol {
 
 final class BridgeRestoreTests: XCTestCase {
 
+    @MainActor
     private func makeBridge() -> (StoreBridge, InMemoryStore, FakeReminder, FakeSpotlight) {
         let store = InMemoryStore()
         let reminder = FakeReminder()
