@@ -19,7 +19,7 @@ struct WidgetSnapshot: Codable, Equatable {
 
 enum WidgetSnapshotStore {
     /// Must match the `com.apple.security.application-groups` entitlement on both targets.
-    static let suiteName = "group.com.lmx203688.followdeck"
+    static let suiteName = "group.com.lixing.followdeck"
     private static let key = "followdeck.widget-snapshot"
 
     private static var encoder: JSONEncoder {

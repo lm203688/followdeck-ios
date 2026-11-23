@@ -6,7 +6,7 @@
 name: FollowDeck
 
 options:
-  bundleIdPrefix: com.lmx203688
+  bundleIdPrefix: com.lixing
   deploymentTarget:
     iOS: "17.0"
   # Keep the generated project generic; app-specific entitlements are added in M1.
@@ -26,7 +26,7 @@ targets:
       - path: FollowDeck/Sources/FollowDeck
       - path: FollowDeck/Shared
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.lmx203688.followdeck
+      PRODUCT_BUNDLE_IDENTIFIER: com.lixing.followdeck
       INFOPLIST_FILE: FollowDeck/Sources/FollowDeck/Info.plist
       CODE_SIGN_ENTITLEMENTS: FollowDeck/Sources/FollowDeck/FollowDeck.entitlements
       TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
@@ -44,7 +44,7 @@ targets:
       - path: FollowDeck/Widgets/FollowDeckWidget
       - path: FollowDeck/Shared
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.lmx203688.followdeck.widget
+      PRODUCT_BUNDLE_IDENTIFIER: com.lixing.followdeck.widget
       INFOPLIST_FILE: FollowDeck/Widgets/FollowDeckWidget/Info.plist
       CODE_SIGN_ENTITLEMENTS: FollowDeck/Widgets/FollowDeckWidget/FollowDeckWidget.entitlements
       GENERATE_INFOPLIST_FILE: NO
