@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftUI
+import WidgetKit
 
 protocol StoreProtocol: AnyObject {
     // Clients
@@ -131,8 +132,8 @@ final class StoreBridge: ObservableObject {
     // MARK: Clients
     func clients() -> [Client] { store.clients() }
     func client(id: UUID) -> Client? { store.client(id: id) }
-    func addClient(_ client: Client) { objectWillChange.send(); store.addClient(client); spotlight.index(client: client) }
-    func updateClient(_ client: Client) { objectWillChange.send(); store.updateClient(client); spotlight.index(client: client) }
+    func addClient(_ client: Client) { objectWillChange.send(); store.addClient(client); spotlight.index(client: client); refreshWidget() }
+    func updateClient(_ client: Client) { objectWillChange.send(); store.updateClient(client); spotlight.index(client: client); refreshWidget() }
     func deleteClient(id: UUID) {
         objectWillChange.send()
         let clientDeals = store.deals(for: id)
@@ -140,25 +141,32 @@ final class StoreBridge: ObservableObject {
         store.deleteClient(id: id)
         spotlight.removeRecord(id: id)
         clientDeals.forEach { spotlight.removeRecord(id: $0.id) }
+        refreshWidget()
     }
 
     // MARK: Deals
     func allDeals() -> [Deal] { store.allDeals() }
     func deals(for clientID: UUID) -> [Deal] { store.deals(for: clientID) }
-    func addDeal(_ deal: Deal) { objectWillChange.send(); store.addDeal(deal); spotlight.index(deal: deal) }
-    func updateDeal(_ deal: Deal) { objectWillChange.send(); store.updateDeal(deal); spotlight.index(deal: deal) }
-    func deleteDeal(id: UUID) { objectWillChange.send(); store.deleteDeal(id: id); spotlight.removeRecord(id: id) }
+    func addDeal(_ deal: Deal) { objectWillChange.send(); store.addDeal(deal); spotlight.index(deal: deal); refreshWidget() }
+    func updateDeal(_ deal: Deal) { objectWillChange.send(); store.updateDeal(deal); spotlight.index(deal: deal); refreshWidget() }
+    func deleteDeal(id: UUID) { objectWillChange.send(); store.deleteDeal(id: id); spotlight.removeRecord(id: id); refreshWidget() }
 
     // MARK: Follow-ups
     func pendingFollowUps() -> [FollowUp] { store.pendingFollowUps() }
     func allFollowUps() -> [FollowUp] { store.allFollowUps() }
-    func addFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.addFollowUp(followUp); reminder.schedule(followUp) }
-    func updateFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.updateFollowUp(followUp); reminder.reschedule(followUp) }
-    func completeFollowUp(id: UUID, at: Date) { objectWillChange.send(); store.completeFollowUp(id: id, at: at); reminder.cancel(id: id) }
-    func deleteFollowUp(id: UUID) { objectWillChange.send(); store.deleteFollowUp(id: id); reminder.cancel(id: id) }
+    func addFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.addFollowUp(followUp); reminder.schedule(followUp); refreshWidget() }
+    func updateFollowUp(_ followUp: FollowUp) { objectWillChange.send(); store.updateFollowUp(followUp); reminder.reschedule(followUp); refreshWidget() }
+    func completeFollowUp(id: UUID, at: Date) { objectWillChange.send(); store.completeFollowUp(id: id, at: at); reminder.cancel(id: id); refreshWidget() }
+    func deleteFollowUp(id: UUID) { objectWillChange.send(); store.deleteFollowUp(id: id); reminder.cancel(id: id); refreshWidget() }
 
     // MARK: Interactions
     func addInteraction(_ interaction: Interaction) { objectWillChange.send(); store.addInteraction(interaction) }
     func interactions(for clientID: UUID) -> [Interaction] { store.interactions(for: clientID) }
     func allInteractions() -> [Interaction] { store.allInteractions() }
+
+    /// Rebuild the shared widget summary and ask the system to refresh active widgets.
+    private func refreshWidget() {
+        WidgetSnapshotBuilder.refresh(from: store)
+        WidgetCenter.shared.reloadAllTimelines()
+    }
 }

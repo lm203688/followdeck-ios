@@ -24,13 +24,32 @@ targets:
     platform: iOS
     sources:
       - path: FollowDeck/Sources/FollowDeck
+      - path: FollowDeck/Shared
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.lmx203688.followdeck
       INFOPLIST_FILE: FollowDeck/Sources/FollowDeck/Info.plist
+      CODE_SIGN_ENTITLEMENTS: FollowDeck/Sources/FollowDeck/FollowDeck.entitlements
       TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       CODE_STYLE: Swift
-    # Extensions (widget, share sheet) are added here in M1 once the MVP target builds.
+    dependencies:
+      - target: FollowDeckWidget
+        embed: true
+        link: false
+
+  FollowDeckWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: FollowDeck/Widgets/FollowDeckWidget
+      - path: FollowDeck/Shared
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.lmx203688.followdeck.widget
+      INFOPLIST_FILE: FollowDeck/Widgets/FollowDeckWidget/Info.plist
+      CODE_SIGN_ENTITLEMENTS: FollowDeck/Widgets/FollowDeckWidget/FollowDeckWidget.entitlements
+      GENERATE_INFOPLIST_FILE: NO
+      TARGETED_DEVICE_FAMILY: "1,2"
+      CODE_STYLE: Swift
     dependencies: []
 
   FollowDeckTests:
