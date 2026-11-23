@@ -34,6 +34,16 @@ final class SortersTests: XCTestCase {
         XCTAssertEqual(sorted.first?.id, older.id)
     }
 
+    func testDealsSortMostRecentlyUpdatedFirst() {
+        let base = Date()
+        let older = Deal(id: UUID(), clientID: UUID(), title: "Older", updatedAt: base.addingTimeInterval(-3_600))
+        let newer = Deal(id: UUID(), clientID: UUID(), title: "Newer", updatedAt: base)
+
+        let sorted = DealSorter.sorted([older, newer])
+
+        XCTAssertEqual(sorted.map(\.title), ["Newer", "Older"])
+    }
+
     func testFollowUpsPutPendingFirstByDueDateAndDoneLastByCompletion() {
         let base = Date()
         let clientID = UUID()

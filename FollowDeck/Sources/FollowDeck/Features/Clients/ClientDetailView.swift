@@ -21,7 +21,7 @@ struct ClientDetailView: View {
     private var followUps: [FollowUp] {
         store.allFollowUps().filter { $0.clientID == clientID }
     }
-    private var deals: [Deal] { store.deals(for: clientID) }
+    private var deals: [Deal] { DealSorter.sorted(store.deals(for: clientID)) }
     private var interactions: [Interaction] { store.interactions(for: clientID) }
 
     var body: some View {

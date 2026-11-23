@@ -20,6 +20,16 @@ enum ClientSorter {
     }
 }
 
+enum DealSorter {
+    /// Most recently updated deal first; ties break by creation date descending.
+    static func sorted(_ deals: [Deal]) -> [Deal] {
+        deals.sorted { a, b in
+            if a.updatedAt != b.updatedAt { return a.updatedAt > b.updatedAt }
+            return a.createdAt > b.createdAt
+        }
+    }
+}
+
 enum FollowUpSorter {
     /// Pending / snoozed items come first, ordered by due date ascending; completed items
     /// follow, ordered by completion time descending.

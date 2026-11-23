@@ -49,7 +49,7 @@ struct PipelineView: View {
             List {
                 summarySection
                 ForEach(DealStage.allCases, id: \.self) { stage in
-                    let stageDeals = deals.filter { $0.stage == stage }
+                    let stageDeals = DealSorter.sorted(deals.filter { $0.stage == stage })
                     if !stageDeals.isEmpty {
                         Section(stage.displayName) {
                             ForEach(stageDeals) { deal in
