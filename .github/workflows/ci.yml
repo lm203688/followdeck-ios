@@ -137,8 +137,7 @@ jobs:
             -project FollowDeck.xcodeproj \
             -scheme "$SCHEME" \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
-            -configuration Debug \
-            -quiet
+            -configuration Debug
 
       # --- Signing, upload and submit (enabled once secrets are provisioned) ---
       # Required GitHub secrets (never committed):
