@@ -11,6 +11,10 @@ import SwiftUI
 struct TodayBoardView: View {
     @EnvironmentObject private var store: StoreBridge
 
+    private var stats: DashboardStats {
+        DashboardStatsBuilder.stats(from: store.store)
+    }
+
     private var overdue: [FollowUp] {
         store.pendingFollowUps().filter { RiskInsights.bucket(for: $0) == .overdue }
     }
@@ -26,6 +30,7 @@ struct TodayBoardView: View {
     var body: some View {
         NavigationStack {
             List {
+                overviewSection
                 section(title: "Overdue", items: overdue, tint: .red)
                 section(title: "Today", items: today, tint: .orange)
                 section(title: "Upcoming", items: upcoming, tint: .blue)
@@ -41,6 +46,32 @@ struct TodayBoardView: View {
                 }
             }
         }
+    }
+
+    private var overviewSection: some View {
+        Section {
+            HStack(spacing: 14) {
+                statColumn(value: stats.clientCount, label: "Clients", color: .primary)
+                statColumn(value: stats.openDealCount, label: "Open deals", color: .primary)
+                Divider()
+                statColumn(value: stats.overdueCount, label: "Overdue", color: .red)
+                statColumn(value: stats.todayCount, label: "Today", color: .orange)
+                statColumn(value: stats.upcomingCount, label: "Upcoming", color: .blue)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func statColumn(value: Int, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.title2.weight(.bold))
+                .foregroundColor(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func section(title: String, items: [FollowUp], tint: Color) -> some View {
