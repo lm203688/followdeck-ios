@@ -3,7 +3,7 @@
 > A deal-stage follow-up copilot for independent service providers: track where each client sits in the
 > proposal → quote → contract → delivery → invoice → payment flow, and never drop a commitment or a late payment again.
 
-**Status:** M2 local-first build: clients, follow-ups, deals and interactions with add / edit / complete / cascade delete, local reminders, rule-based next-step suggestions, client search, App Intents entity pickers, a revenue-risk view, Spotlight indexing for clients and deals, a local-only JSON export share sheet, and a home-screen WidgetKit glance showing overdue / today / upcoming follow-ups. A 1024 placeholder icon is included; the final brand icon is pending. Compiles and unit-tests green on the cloud macOS runner. No signed / uploaded build yet.
+**Status:** M2 local-first build: clients, follow-ups, deals and interactions with add / edit / complete / cascade delete, local reminders, rule-based next-step suggestions, client search, App Intents entity pickers, a revenue-risk view, Spotlight indexing for clients and deals, a local-only JSON export share sheet, a home-screen WidgetKit glance showing overdue / today / upcoming follow-ups, URL-scheme deep links that route to the matching tab, a Today-board overview summary (clients / open deals / overdue / today / upcoming), and validated client and deal forms (email, phone and amount checks). A 1024 placeholder icon is included; the final brand icon is pending. Compiles and 48 unit-tests green on the cloud macOS runner. No signed / uploaded build yet.
 
 ## Fixed product constraints (locked)
 
