@@ -24,6 +24,8 @@ struct ClientDetailView: View {
     private var deals: [Deal] { DealSorter.sorted(store.deals(for: clientID)) }
     private var interactions: [Interaction] { store.interactions(for: clientID) }
 
+    private var dealSummary: PipelineSummary { PipelineSummaryBuilder.summary(from: deals) }
+
     var body: some View {
         List {
             if let client {
@@ -57,6 +59,13 @@ struct ClientDetailView: View {
                     if deals.isEmpty {
                         Text("No deals yet.").foregroundColor(.secondary)
                     } else {
+                        HStack(spacing: 8) {
+                            Label("Open \(dealSummary.openDealCount)", systemImage: "briefcase")
+                            Spacer()
+                            Text(DisplayFormat.amount(dealSummary.totalAmount, currency: dealSummary.primaryCurrency) ?? "—")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                         if let first = deals.first {
                             NextStepCard(deal: first, history: interactions)
                         }
