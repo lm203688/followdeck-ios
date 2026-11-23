@@ -22,8 +22,8 @@ final class CsvBuilderTests: XCTestCase {
 
     func testClientHeaderAndRowColumnCount() {
         let client = Client(name: "Nora Blake", phone: "555-0100", email: "nora@example.com",
-                            tags: ["design", "retainer"], status: "active",
-                            createdAt: Date(timeIntervalSince1970: 1_700_000_000))
+                            tags: ["design", "retainer"],
+                            createdAt: Date(timeIntervalSince1970: 1_700_000_000), status: "active")
         let csv = CsvBuilder.clientsCSV(from: makeSnapshot(client: client))
         let lines = csv.components(separatedBy: "\n")
 
@@ -57,7 +57,7 @@ final class CsvBuilderTests: XCTestCase {
     }
 
     func testFollowUpHeaderAndRowColumnCount() {
-        let followUp = FollowUp(clientID: UUID(), note: "Send quote", type: .quote,
+        let followUp = FollowUp(clientID: UUID(), type: .quote, note: "Send quote",
                                 dueAt: Date(timeIntervalSince1970: 1_700_000_000), status: .pending,
                                 channel: .call)
         let csv = CsvBuilder.followUpsCSV(from: makeSnapshot(followUp: followUp))
