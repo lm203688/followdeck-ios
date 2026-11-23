@@ -57,13 +57,18 @@ enum FormValidators {
     }
 
     /// Parse an optional deal amount. Empty text -> nil; unparseable -> nil.
-    /// Removes thousands separators and whitespace before parsing.
+    /// Removes thousands separators and whitespace before parsing. A strict
+    /// character whitelist is applied first because `Decimal(string:)` parses a
+    /// leading numeric prefix (e.g. "12a3" -> 12) instead of failing outright.
     static func parsedAmount(_ text: String?) -> Decimal? {
         guard let text else { return nil }
         let cleaned = text
             .replacingOccurrences(of: ",", with: "")
             .trimmingCharacters(in: .whitespaces)
         guard !cleaned.isEmpty else { return nil }
+        let allowed: Set<Character> = Set("0123456789.-")
+        guard cleaned.allSatisfy({ allowed.contains($0) }) else { return nil }
+        guard cleaned.filter({ $0 == "." }).count <= 1 else { return nil }
         return Decimal(string: cleaned)
     }
 
