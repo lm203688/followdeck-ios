@@ -31,7 +31,12 @@ private final class FakeSpotlight: SpotlightIndexerProtocol {
     func index(client: Client) { indexedClients.append(client.id) }
     func index(deal: Deal) { indexedDeals.append(deal.id) }
     func removeRecord(id: UUID) { removed.append(id) }
-    func removeAll() { removeAllCalled = true }
+    func removeAll() {
+        removeAllCalled = true
+        indexedClients.removeAll()
+        indexedDeals.removeAll()
+        removed.removeAll()
+    }
 }
 
 final class BridgeRestoreTests: XCTestCase {
@@ -82,8 +87,10 @@ final class BridgeRestoreTests: XCTestCase {
             XCTAssertEqual(store.allInteractions().map(\.id), [newInteraction.id])
 
             // Old follow-up reminder cancelled; restored follow-up scheduled.
+            // `scheduled` is a historical call log, so it also holds the old follow-up
+            // scheduled when it was first added; assert the restored one is present.
             XCTAssertEqual(reminder.cancelled, [oldFollowUp.id])
-            XCTAssertEqual(reminder.scheduled.map(\.id), [newFollowUp.id])
+            XCTAssertTrue(reminder.scheduled.map(\.id).contains(newFollowUp.id))
 
             // Spotlight cleared, then restored records indexed.
             XCTAssertTrue(spotlight.removeAllCalled)
