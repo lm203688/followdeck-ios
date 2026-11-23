@@ -141,6 +141,20 @@ struct FollowUpRow: View {
             }
             Spacer()
             HStack(spacing: 12) {
+                if followUp.status != .done {
+                    Menu {
+                        ForEach(SnoozeOption.allCases) { option in
+                            Button(option.title) {
+                                store.updateFollowUp(FollowUpSnooze.snoozing(followUp, option: option))
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "bell.slash")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityLabel("Snooze follow-up")
+                }
                 if let onEdit {
                     Button {
                         onEdit()
