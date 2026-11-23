@@ -260,4 +260,15 @@ final class SwiftDataStore: StoreProtocol {
     func allInteractions() -> [Interaction] {
         fetch(SDInteraction.self).map { $0.toInteraction() }.sorted { $0.date > $1.date }
     }
+
+    func replaceAll(clients: [Client], deals: [Deal], followUps: [FollowUp], interactions: [Interaction]) {
+        fetch(SDClient.self).forEach { context.delete($0) }
+        fetch(SDDeal.self).forEach { context.delete($0) }
+        fetch(SDFollowUp.self).forEach { context.delete($0) }
+        fetch(SDInteraction.self).forEach { context.delete($0) }
+        clients.forEach { context.insert($0.toSD()) }
+        deals.forEach { context.insert($0.toSD()) }
+        followUps.forEach { context.insert($0.toSD()) }
+        interactions.forEach { context.insert($0.toSD()) }
+    }
 }

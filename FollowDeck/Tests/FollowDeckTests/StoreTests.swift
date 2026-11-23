@@ -101,4 +101,39 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(store.allFollowUps().count, 0)
         XCTAssertEqual(store.allDeals().count, 0)
     }
+
+    func testReplaceAllReplacesExistingRecords() {
+        let store = makeStore()
+        store.addClient(Client(name: "Old Client"))
+        store.addDeal(Deal(clientID: UUID(), title: "Old deal"))
+        store.addFollowUp(FollowUp(clientID: UUID(), note: "Old follow-up", dueAt: Date()))
+
+        let newClient = Client(id: UUID(), name: "New Client", email: "new@example.com")
+        let newDeal = Deal(id: UUID(), clientID: newClient.id, title: "New deal", stage: .quote)
+        let newFollowUp = FollowUp(id: UUID(), clientID: newClient.id, note: "New follow-up", dueAt: Date())
+        let newInteraction = Interaction(id: UUID(), clientID: newClient.id, channel: .meeting, summary: "New meeting")
+
+        store.replaceAll(clients: [newClient], deals: [newDeal], followUps: [newFollowUp], interactions: [newInteraction])
+
+        XCTAssertEqual(store.clients().map { $0.name }, ["New Client"])
+        XCTAssertEqual(store.allDeals().count, 1)
+        XCTAssertEqual(store.allFollowUps().count, 1)
+        XCTAssertEqual(store.allInteractions().count, 1)
+        XCTAssertNil(store.client(id: UUID()))
+    }
+
+    func testReplaceAllWithEmptySetClearsStore() {
+        let store = makeStore()
+        store.addClient(Client(name: "To be cleared"))
+        store.addDeal(Deal(clientID: UUID(), title: "Cleared deal"))
+        store.addFollowUp(FollowUp(clientID: UUID(), note: "Cleared follow-up", dueAt: Date()))
+        store.addInteraction(Interaction(clientID: UUID(), channel: .call, summary: "Cleared call"))
+
+        store.replaceAll(clients: [], deals: [], followUps: [], interactions: [])
+
+        XCTAssertTrue(store.clients().isEmpty)
+        XCTAssertTrue(store.allDeals().isEmpty)
+        XCTAssertTrue(store.allFollowUps().isEmpty)
+        XCTAssertTrue(store.allInteractions().isEmpty)
+    }
 }

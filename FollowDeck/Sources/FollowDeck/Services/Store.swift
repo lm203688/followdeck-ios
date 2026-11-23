@@ -37,6 +37,9 @@ protocol StoreProtocol: AnyObject {
     func addInteraction(_ interaction: Interaction)
     func interactions(for clientID: UUID) -> [Interaction]
     func allInteractions() -> [Interaction]
+
+    /// Replace every record with the supplied set (whole-library backup restore).
+    func replaceAll(clients: [Client], deals: [Deal], followUps: [FollowUp], interactions: [Interaction])
 }
 
 /// In-memory placeholder used until the persistence layer is wired on macOS.
@@ -110,6 +113,13 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
 
     func allInteractions() -> [Interaction] {
         interactionList.sorted { $0.date > $1.date }
+    }
+
+    func replaceAll(clients: [Client], deals: [Deal], followUps: [FollowUp], interactions: [Interaction]) {
+        clientList = clients
+        dealList = deals
+        followUpList = followUps
+        interactionList = interactions
     }
 }
 
