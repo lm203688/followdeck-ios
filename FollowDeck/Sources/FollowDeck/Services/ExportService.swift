@@ -74,6 +74,20 @@ enum ExportBuilder {
         return ExportedFile(fileName: "followdeck-export-\(stamp(date)).json", data: data)
     }
 
+    static func clientsCSVFile(from store: StoreProtocol, date: Date = Date()) -> ExportedFile {
+        let snapshot = snapshot(from: store, exportedAt: date)
+        let text = CsvBuilder.clientsCSV(from: snapshot)
+        let data = text.data(using: .utf8) ?? Data()
+        return ExportedFile(fileName: "followdeck-clients-\(stamp(date)).csv", data: data)
+    }
+
+    static func followUpsCSVFile(from store: StoreProtocol, date: Date = Date()) -> ExportedFile {
+        let snapshot = snapshot(from: store, exportedAt: date)
+        let text = CsvBuilder.followUpsCSV(from: snapshot)
+        let data = text.data(using: .utf8) ?? Data()
+        return ExportedFile(fileName: "followdeck-followups-\(stamp(date)).csv", data: data)
+    }
+
     private static func stamp(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmm"

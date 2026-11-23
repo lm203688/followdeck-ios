@@ -2,9 +2,10 @@
 //  ExportDataView.swift
 //  FollowDeck
 //
-//  Local-only export sheet: builds a JSON snapshot of every record on device and hands it
-//  to the system share sheet. No network call, no account, no paywall; the Pro branding
-//  and any paid export destination are reserved for later.
+//  Local-only export sheet: builds a JSON snapshot plus contacts / follow-ups CSV
+//  tables of every record on device and hands them to the system share sheet.
+//  No network call, account, or paywall; the Pro branding and any paid export
+//  destination are reserved for later.
 //
 
 import SwiftUI
@@ -13,7 +14,9 @@ struct ExportDataView: View {
     @EnvironmentObject private var store: StoreBridge
     @Environment(\.dismiss) private var dismiss
 
-    @State private var exportURL: URL?
+    @State private var jsonURL: URL?
+    @State private var clientsCSVURL: URL?
+    @State private var followUpsCSVURL: URL?
     @State private var exportError: String?
     @State private var counts: (clients: Int, deals: Int, followUps: Int, interactions: Int)?
 
@@ -30,7 +33,7 @@ struct ExportDataView: View {
                 }
 
                 Section {
-                    Text("A JSON snapshot of everything stored on this device. The file never leaves your device until you choose where to share it.")
+                    Text("A JSON snapshot of everything stored on this device, plus CSV tables for clients and follow-ups that open in a spreadsheet. Files never leave your device until you choose where to share them.")
                         .foregroundColor(.secondary)
                 } header: {
                     Text("How it works")
@@ -39,15 +42,28 @@ struct ExportDataView: View {
                 Section {
                     if let exportError {
                         Text(exportError).foregroundColor(.red)
-                    } else if let exportURL {
-                        ShareLink(item: exportURL, preview: SharePreview("FollowDeck export")) {
-                            Label("Share JSON file", systemImage: "square.and.arrow.up")
-                        }
                     } else {
-                        HStack {
-                            ProgressView()
-                            Text("Preparing export…")
-                                .foregroundColor(.secondary)
+                        if let jsonURL {
+                            ShareLink(item: jsonURL, preview: SharePreview("FollowDeck JSON export")) {
+                                Label("Share JSON file", systemImage: "square.and.arrow.up")
+                            }
+                        }
+                        if let clientsCSVURL {
+                            ShareLink(item: clientsCSVURL, preview: SharePreview("Clients CSV")) {
+                                Label("Share clients CSV", systemImage: "tablecells")
+                            }
+                        }
+                        if let followUpsCSVURL {
+                            ShareLink(item: followUpsCSVURL, preview: SharePreview("Follow-ups CSV")) {
+                                Label("Share follow-ups CSV", systemImage: "tablecells")
+                            }
+                        }
+                        if jsonURL == nil && clientsCSVURL == nil && followUpsCSVURL == nil {
+                            HStack {
+                                ProgressView()
+                                Text("Preparing export…")
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
@@ -69,17 +85,27 @@ struct ExportDataView: View {
     }
 
     private func prepareExport() {
-        guard exportURL == nil else { return }
+        guard jsonURL == nil else { return }
         let snapshot = ExportBuilder.snapshot(from: store.store)
         counts = (snapshot.clients.count, snapshot.deals.count,
                   snapshot.followUps.count, snapshot.interactions.count)
         do {
-            let file = try ExportBuilder.makeFile(from: store.store)
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(file.fileName)
-            try file.data.write(to: url, options: .atomic)
-            exportURL = url
+            let jsonFile = try ExportBuilder.makeFile(from: store.store)
+            jsonURL = try writeTemp(jsonFile)
+
+            let clientsFile = ExportBuilder.clientsCSVFile(from: store.store)
+            clientsCSVURL = try writeTemp(clientsFile)
+
+            let followUpsFile = ExportBuilder.followUpsCSVFile(from: store.store)
+            followUpsCSVURL = try writeTemp(followUpsFile)
         } catch {
             exportError = "Could not prepare the export. Please try again."
         }
+    }
+
+    private func writeTemp(_ file: ExportedFile) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(file.fileName)
+        try file.data.write(to: url, options: .atomic)
+        return url
     }
 }
