@@ -14,9 +14,40 @@ struct PipelineView: View {
 
     private var deals: [Deal] { store.allDeals() }
 
+    private var summary: PipelineSummary {
+        PipelineSummaryBuilder.summary(from: deals)
+    }
+
+    private var openValueText: String? {
+        DisplayFormat.amount(summary.totalAmount, currency: summary.primaryCurrency)
+    }
+
+    private var summarySection: some View {
+        Section {
+            HStack(spacing: 14) {
+                summaryColumn(value: "\(summary.openDealCount)", label: "Open deals")
+                Divider()
+                summaryColumn(value: openValueText ?? "—", label: "Open value")
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func summaryColumn(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.title2.weight(.bold))
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     var body: some View {
         NavigationStack {
             List {
+                summarySection
                 ForEach(DealStage.allCases, id: \.self) { stage in
                     let stageDeals = deals.filter { $0.stage == stage }
                     if !stageDeals.isEmpty {
@@ -81,11 +112,7 @@ struct DealRow: View {
     }
 
     private var amountText: String? {
-        guard let amount = deal.amount else { return nil }
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = deal.currency
-        return formatter.string(from: amount as NSNumber)
+        DisplayFormat.amount(deal.amount, currency: deal.currency)
     }
 
     var body: some View {

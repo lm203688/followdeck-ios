@@ -63,4 +63,12 @@ enum DisplayFormat {
 
     static func date(_ date: Date) -> String { shortDate.string(from: date) }
     static func dateTime(_ date: Date) -> String { shortDateTime.string(from: date) }
+
+    static func amount(_ value: Decimal?, currency: String?) -> String? {
+        guard let value else { return nil }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency ?? "USD"
+        return formatter.string(from: value as NSNumber)
+    }
 }
