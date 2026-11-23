@@ -256,4 +256,8 @@ final class SwiftDataStore: StoreProtocol {
         fetch(SDInteraction.self).map { $0.toInteraction() }
             .filter { $0.clientID == clientID }.sorted { $0.date > $1.date }
     }
+
+    func allInteractions() -> [Interaction] {
+        fetch(SDInteraction.self).map { $0.toInteraction() }.sorted { $0.date > $1.date }
+    }
 }

@@ -10,6 +10,7 @@ import SwiftUI
 struct ClientsView: View {
     @EnvironmentObject private var store: StoreBridge
     @State private var showingAddClient = false
+    @State private var showingExport = false
     @State private var searchText = ""
 
     private var clients: [Client] { store.clients() }
@@ -55,6 +56,13 @@ struct ClientsView: View {
             .searchable(text: $searchText, prompt: "Search clients")
             .navigationTitle("Clients")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingExport = true
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAddClient = true
@@ -65,6 +73,9 @@ struct ClientsView: View {
             }
             .sheet(isPresented: $showingAddClient) {
                 AddClientView()
+            }
+            .sheet(isPresented: $showingExport) {
+                ExportDataView()
             }
             .overlay {
                 if clients.isEmpty {

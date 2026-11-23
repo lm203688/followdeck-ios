@@ -35,6 +35,7 @@ protocol StoreProtocol: AnyObject {
     // Interactions
     func addInteraction(_ interaction: Interaction)
     func interactions(for clientID: UUID) -> [Interaction]
+    func allInteractions() -> [Interaction]
 }
 
 /// In-memory placeholder used until the persistence layer is wired on macOS.
@@ -105,6 +106,10 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
     func interactions(for clientID: UUID) -> [Interaction] {
         interactionList.filter { $0.clientID == clientID }.sorted { $0.date > $1.date }
     }
+
+    func allInteractions() -> [Interaction] {
+        interactionList.sorted { $0.date > $1.date }
+    }
 }
 
 /// ObservableObject wrapper so SwiftUI can observe a `StoreProtocol` behind one concrete type.
@@ -155,4 +160,5 @@ final class StoreBridge: ObservableObject {
     // MARK: Interactions
     func addInteraction(_ interaction: Interaction) { objectWillChange.send(); store.addInteraction(interaction) }
     func interactions(for clientID: UUID) -> [Interaction] { store.interactions(for: clientID) }
+    func allInteractions() -> [Interaction] { store.allInteractions() }
 }

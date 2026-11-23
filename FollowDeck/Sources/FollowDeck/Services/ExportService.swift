@@ -48,3 +48,35 @@ enum ExportService {
         return try decoder.decode(ExportSnapshot.self, from: data)
     }
 }
+
+/// A ready-to-share local export: a suggested file name plus encoded JSON data.
+struct ExportedFile: Equatable {
+    let fileName: String
+    let data: Data
+}
+
+/// Aggregates every local record from the store into an export snapshot and builds the
+/// shareable file. Pure Foundation logic; the share sheet / UI lives in the feature layer.
+enum ExportBuilder {
+    static func snapshot(from store: StoreProtocol) -> ExportSnapshot {
+        ExportService.snapshot(
+            clients: store.clients(),
+            deals: store.allDeals(),
+            followUps: store.allFollowUps(),
+            interactions: store.allInteractions()
+        )
+    }
+
+    static func makeFile(from store: StoreProtocol, date: Date = Date()) throws -> ExportedFile {
+        let snapshot = snapshot(from: store)
+        let data = try ExportService.jsonData(for: snapshot)
+        return ExportedFile(fileName: "followdeck-export-\(stamp(date)).json", data: data)
+    }
+
+    private static func stamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
+    }
+}
