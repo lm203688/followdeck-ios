@@ -113,29 +113,36 @@ final class InMemoryStore: ObservableObject, StoreProtocol {
 final class StoreBridge: ObservableObject {
     let store: StoreProtocol
     private let reminder: ReminderServiceProtocol
+    private let spotlight: SpotlightIndexerProtocol
 
-    init(store: StoreProtocol, reminder: ReminderServiceProtocol = ReminderService.shared) {
+    init(store: StoreProtocol,
+         reminder: ReminderServiceProtocol = ReminderService.shared,
+         spotlight: SpotlightIndexerProtocol = SpotlightIndexer.shared) {
         self.store = store
         self.reminder = reminder
+        self.spotlight = spotlight
     }
 
     // MARK: Clients
     func clients() -> [Client] { store.clients() }
     func client(id: UUID) -> Client? { store.client(id: id) }
-    func addClient(_ client: Client) { objectWillChange.send(); store.addClient(client) }
-    func updateClient(_ client: Client) { objectWillChange.send(); store.updateClient(client) }
+    func addClient(_ client: Client) { objectWillChange.send(); store.addClient(client); spotlight.index(client: client) }
+    func updateClient(_ client: Client) { objectWillChange.send(); store.updateClient(client); spotlight.index(client: client) }
     func deleteClient(id: UUID) {
         objectWillChange.send()
+        let clientDeals = store.deals(for: id)
         store.allFollowUps().filter { $0.clientID == id }.forEach { reminder.cancel(id: $0.id) }
         store.deleteClient(id: id)
+        spotlight.removeRecord(id: id)
+        clientDeals.forEach { spotlight.removeRecord(id: $0.id) }
     }
 
     // MARK: Deals
     func allDeals() -> [Deal] { store.allDeals() }
     func deals(for clientID: UUID) -> [Deal] { store.deals(for: clientID) }
-    func addDeal(_ deal: Deal) { objectWillChange.send(); store.addDeal(deal) }
-    func updateDeal(_ deal: Deal) { objectWillChange.send(); store.updateDeal(deal) }
-    func deleteDeal(id: UUID) { objectWillChange.send(); store.deleteDeal(id: id) }
+    func addDeal(_ deal: Deal) { objectWillChange.send(); store.addDeal(deal); spotlight.index(deal: deal) }
+    func updateDeal(_ deal: Deal) { objectWillChange.send(); store.updateDeal(deal); spotlight.index(deal: deal) }
+    func deleteDeal(id: UUID) { objectWillChange.send(); store.deleteDeal(id: id); spotlight.removeRecord(id: id) }
 
     // MARK: Follow-ups
     func pendingFollowUps() -> [FollowUp] { store.pendingFollowUps() }
