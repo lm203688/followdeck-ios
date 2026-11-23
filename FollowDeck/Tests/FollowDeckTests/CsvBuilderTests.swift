@@ -28,7 +28,7 @@ final class CsvBuilderTests: XCTestCase {
         let lines = csv.components(separatedBy: "\n")
 
         XCTAssertEqual(lines[0], CsvBuilder.clientHeader)
-        XCTAssertEqual(lines[1].split(separator: ",").count, 7)
+        XCTAssertEqual(lines[1].components(separatedBy: ",").count, 7)
         XCTAssertTrue(lines[1].contains("Nora Blake"))
         XCTAssertTrue(lines[1].contains("nora@example.com"))
         XCTAssertTrue(lines[1].contains("design; retainer"))
@@ -64,7 +64,7 @@ final class CsvBuilderTests: XCTestCase {
         let lines = csv.components(separatedBy: "\n")
 
         XCTAssertEqual(lines[0], CsvBuilder.followUpHeader)
-        XCTAssertEqual(lines[1].split(separator: ",").count, 8)
+        XCTAssertEqual(lines[1].components(separatedBy: ",").count, 8)
         XCTAssertTrue(lines[1].contains("Send quote"))
         XCTAssertTrue(lines[1].contains("pending"))
         XCTAssertTrue(lines[1].contains("call"))
