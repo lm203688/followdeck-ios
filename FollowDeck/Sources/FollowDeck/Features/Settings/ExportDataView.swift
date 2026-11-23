@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ExportDataView: View {
     @EnvironmentObject private var store: StoreBridge
@@ -19,6 +20,10 @@ struct ExportDataView: View {
     @State private var followUpsCSVURL: URL?
     @State private var exportError: String?
     @State private var counts: (clients: Int, deals: Int, followUps: Int, interactions: Int)?
+    @State private var showRestoreConfirmation = false
+    @State private var showImporter = false
+    @State private var restoreMessage: String?
+    @State private var restoreError: String?
 
     var body: some View {
         NavigationStack {
@@ -67,6 +72,24 @@ struct ExportDataView: View {
                         }
                     }
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showRestoreConfirmation = true
+                    } label: {
+                        Label("Restore from JSON backup", systemImage: "arrow.down.circle")
+                    }
+                    if let restoreMessage {
+                        Text(restoreMessage).foregroundColor(.green)
+                    }
+                    if let restoreError {
+                        Text(restoreError).foregroundColor(.red)
+                    }
+                } header: {
+                    Text("Restore")
+                } footer: {
+                    Text("Restoring replaces every client, deal, follow-up and interaction currently on this device with the selected backup file.")
+                }
             }
             .navigationTitle("Export data")
             .navigationBarTitleDisplayMode(.inline)
@@ -76,6 +99,15 @@ struct ExportDataView: View {
                 }
             }
             .onAppear(perform: prepareExport)
+            .alert("Replace current data?", isPresented: $showRestoreConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Restore", role: .destructive) { showImporter = true }
+            } message: {
+                Text("This erases the clients, deals, follow-ups and interactions currently on this device and replaces them with the backup file you choose.")
+            }
+            .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
+                handleImport(result)
+            }
         }
     }
 
@@ -100,6 +132,45 @@ struct ExportDataView: View {
             followUpsCSVURL = try writeTemp(followUpsFile)
         } catch {
             exportError = "Could not prepare the export. Please try again."
+        }
+    }
+
+    private func handleImport(_ result: Result<[URL], Error>) {
+        do {
+            guard let url = try result.get().first else { return }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let parsed = try ImportParser.parse(data: data)
+            store.restore(parsed)
+            restoreError = nil
+            refreshCounts()
+            let dropped = parsed.droppedDealIDs.count + parsed.droppedFollowUpIDs.count + parsed.droppedInteractionIDs.count
+            var message = "Restored \(parsed.clients.count) clients, \(parsed.deals.count) deals, \(parsed.followUps.count) follow-ups and \(parsed.interactions.count) interactions."
+            if dropped > 0 {
+                message += " \(dropped) orphaned record(s) were skipped."
+            }
+            restoreMessage = message
+        } catch {
+            restoreMessage = nil
+            restoreError = Self.importErrorText(error)
+        }
+    }
+
+    private func refreshCounts() {
+        let snapshot = ExportBuilder.snapshot(from: store.store)
+        counts = (snapshot.clients.count, snapshot.deals.count,
+                  snapshot.followUps.count, snapshot.interactions.count)
+    }
+
+    private static func importErrorText(_ error: Error) -> String {
+        guard let importError = error as? ImportError else {
+            return "Could not read the backup file. Please try another file."
+        }
+        switch importError {
+        case .invalidJSON: return "That file is not valid JSON."
+        case .incompatibleSchema: return "That file does not look like a FollowDeck backup."
+        case .emptySnapshot: return "The backup contains no clients."
         }
     }
 
