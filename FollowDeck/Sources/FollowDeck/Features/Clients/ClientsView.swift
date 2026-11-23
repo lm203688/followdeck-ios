@@ -13,7 +13,7 @@ struct ClientsView: View {
     @State private var showingExport = false
     @State private var searchText = ""
 
-    private var clients: [Client] { store.clients() }
+    private var clients: [Client] { ClientSorter.sorted(store.clients()) }
 
     private var filteredClients: [Client] {
         guard !searchText.isEmpty else { return clients }

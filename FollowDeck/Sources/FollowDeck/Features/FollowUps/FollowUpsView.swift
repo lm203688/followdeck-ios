@@ -11,7 +11,7 @@ struct FollowUpsView: View {
     @EnvironmentObject private var store: StoreBridge
     @State private var showingAddFollowUp = false
 
-    private var followUps: [FollowUp] { store.allFollowUps() }
+    private var followUps: [FollowUp] { FollowUpSorter.sorted(store.allFollowUps()) }
 
     var body: some View {
         NavigationStack {
