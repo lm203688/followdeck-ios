@@ -34,8 +34,10 @@ project spec here; a cloud macOS runner generates the `.xcodeproj` and compiles 
 1. Author code and `project.yml` on Windows.
 2. Push to GitHub.
 3. GitHub Actions `macos-build` job: install XcodeGen → `xcodegen generate` → build for the newest iPhone simulator.
-4. Signing, TestFlight upload and review submission are scaffolded but stay disabled until the App Store Connect
-   API key and distribution certificate are provisioned as GitHub secrets (never committed).
+4. Signing, archive/export and TestFlight upload are coded in the `dry_run` / `release` lane but stay
+   gated on secrets: they run only once the App Store Connect API key and distribution certificate /
+   profile are provisioned as GitHub secrets (never committed). The simulator `compile` build runs on
+   every push and never touches signing.
 
 Milestones, blocking dependencies, the engineering guide and store copy live in the separate private docs repo (see Repository layout below).
 
