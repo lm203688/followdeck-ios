@@ -258,12 +258,9 @@ jobs:
             -exportPath "$RUNNER_TEMP/ipa" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
 
-          # The upload action does not expand globs: pin the IPA to a concrete path so the
-          # adm-zip backend can open an existing file.
+          # The upload action does not expand globs: point it at the concrete exported IPA.
           ls -la "$RUNNER_TEMP/ipa"
-          IPA=$(find "$RUNNER_TEMP/ipa" -maxdepth 1 -name "*.ipa" | head -n 1)
-          test -n "$IPA" || { echo "::error::No IPA exported to $RUNNER_TEMP/ipa"; exit 1; }
-          cp "$IPA" "$RUNNER_TEMP/ipa/FollowDeck.ipa"
+          test -f "$RUNNER_TEMP/ipa/FollowDeck.ipa" || { echo "::error::FollowDeck.ipa not exported to $RUNNER_TEMP/ipa"; exit 1; }
 
       - name: Upload to TestFlight
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
