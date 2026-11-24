@@ -12,6 +12,7 @@ import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var store: StoreBridge
+    @EnvironmentObject private var subscriptions: SubscriptionManager
     @Environment(\.dismiss) private var dismiss
 
     private let info = AppInfo.current()
@@ -40,6 +41,29 @@ struct SettingsView: View {
                         ExportDataView()
                     } label: {
                         Label("Export my data", systemImage: "square.and.arrow.up")
+                    }
+                }
+
+                Section("Subscription") {
+                    if subscriptions.isPro {
+                        LabeledContent("Plan", value: "FollowDeck Pro")
+                    } else {
+                        Text("Free plan — up to \(EntitlementPolicy.freeTierClientLimit) clients.")
+                            .foregroundColor(.secondary)
+                    }
+                    Button {
+                        subscriptions.restorePurchases()
+                    } label: {
+                        Label("Restore Purchases", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(subscriptions.isRestoring)
+                    if subscriptions.isRestoring {
+                        ProgressView()
+                    }
+                    if let message = subscriptions.message {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
 
