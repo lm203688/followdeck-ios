@@ -68,7 +68,9 @@ schemes:
   FollowDeck:
     build:
       targets:
-        FollowDeck: [run]
+        FollowDeck: [run, archive, profile]
     test:
       targets:
         - FollowDeckTests
+    archive:
+      config: Release
