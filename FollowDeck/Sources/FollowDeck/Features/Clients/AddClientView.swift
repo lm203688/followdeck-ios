@@ -10,6 +10,7 @@ import SwiftUI
 
 struct AddClientView: View {
     @EnvironmentObject private var store: StoreBridge
+    @EnvironmentObject private var subscriptions: SubscriptionManager
     @Environment(\.dismiss) private var dismiss
 
     private let editingClient: Client?
@@ -29,7 +30,17 @@ struct AddClientView: View {
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
     private var emailValid: Bool { FormValidators.isValidEmail(email) }
     private var phoneValid: Bool { FormValidators.isValidPhone(phone) }
-    private var canSave: Bool { !trimmedName.isEmpty && emailValid && phoneValid }
+
+    /// Free-tier roster cap applies only when creating a new client; editing an
+    /// existing record never counts against the limit.
+    private var rosterLimitReached: Bool {
+        guard editingClient == nil else { return false }
+        return !subscriptions.canAddClient(currentCount: store.clients().count)
+    }
+
+    private var canSave: Bool {
+        !trimmedName.isEmpty && emailValid && phoneValid && !rosterLimitReached
+    }
 
     var body: some View {
         NavigationStack {
@@ -54,6 +65,13 @@ struct AddClientView: View {
                 }
                 Section("Tags") {
                     TextField("Comma-separated tags", text: $tagsText)
+                }
+                if rosterLimitReached {
+                    Section("Limit") {
+                        Text("You've reached the free limit of \(EntitlementPolicy.freeTierClientLimit) clients. Upgrade to Pro to add more.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .navigationTitle(editingClient == nil ? "New Client" : "Edit Client")
