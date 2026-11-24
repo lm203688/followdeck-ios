@@ -3,8 +3,8 @@
 //  FollowDeck
 //
 //  System / Siri integration. Intents read and write through the shared SwiftData
-//  store. String UUIDs are a placeholder until AppEntity + EntityQuery resolution
-//  lands in a later iteration. See docs/INTENTS.md for the full intent list.
+//  store; entities resolve through the AppEntity + EntityQuery pickers in Entities.swift.
+//  See docs/INTENTS.md for the full intent list.
 //
 
 import AppIntents

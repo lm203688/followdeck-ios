@@ -42,7 +42,8 @@ protocol StoreProtocol: AnyObject {
     func replaceAll(clients: [Client], deals: [Deal], followUps: [FollowUp], interactions: [Interaction])
 }
 
-/// In-memory placeholder used until the persistence layer is wired on macOS.
+/// In-memory reference implementation, used by tests and as a fallback store.
+/// Production persistence is provided by SwiftDataStore.
 final class InMemoryStore: ObservableObject, StoreProtocol {
     private var clientList: [Client] = []
     private var dealList: [Deal] = []
