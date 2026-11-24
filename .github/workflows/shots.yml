@@ -2,6 +2,15 @@ name: shots
 
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: "Device to capture"
+        required: true
+        default: iphone
+        type: choice
+        options:
+          - iphone
+          - ipad
 
 env:
   SCHEME: FollowDeck
@@ -9,27 +18,12 @@ env:
 
 jobs:
   screenshots:
-    name: App Store screenshots (iPhone 6.9 + iPad 13)
+    name: Screenshots (${{ github.event.inputs.target || 'iphone' }})
     runs-on: xcode-27
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Pick simulators and warm them up
-        run: |
-          set -euo pipefail
-          IPHONE=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=sorted([n for n in names if re.match(r"iPhone 1[5-9].*Pro Max$", n)], key=lambda s:int(re.search(r"iPhone (\d+)", s).group(1)), reverse=True); print(cand[0] if cand else "")')
-          IPAD=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=[n for n in names if n.startswith("iPad Pro") and ("13-inch" in n or "12.9" in n)]; print(cand[0] if cand else "")')
-          echo "iPhone device: $IPHONE"
-          echo "iPad device: $IPAD"
-          test -n "$IPHONE" -a -n "$IPAD" || { echo "::error::Missing simulator device"; exit 1; }
-          echo "IPHONE=$IPHONE" >> "$GITHUB_ENV"
-          echo "IPAD=$IPAD" >> "$GITHUB_ENV"
-          # Boot both while the project builds; first boot is the slow part.
-          nohup xcrun simctl boot "$IPHONE" >/dev/null 2>&1 &
-          nohup xcrun simctl boot "$IPAD" >/dev/null 2>&1 &
-          echo "booting in background"
 
       - name: Select newest usable Xcode
         run: |
@@ -52,7 +46,6 @@ jobs:
             https://github.com/yonaskolb/XcodeGen/releases/latest/download/xcodegen.zip
           unzip -q -o "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
           bin=$(find "$RUNNER_TEMP/xcodegen" -type f -name xcodegen -perm -u+x | head -1)
-          test -n "$bin" || { echo "::error::xcodegen binary not found"; exit 1; }
           cp "$bin" "$HOME/.local/bin/xcodegen"; chmod +x "$HOME/.local/bin/xcodegen"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
@@ -74,40 +67,36 @@ jobs:
       - name: Capture screenshots
         run: |
           set -euo pipefail
+          TARGET="${{ github.event.inputs.target || 'iphone' }}"
           APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/FollowDeck.app"
           test -d "$APP" || { echo "::error::App not built"; exit 1; }
-          mkdir -p shots/iphone shots/ipad
+          mkdir -p "shots/$TARGET"
 
-          # wait for both boots (bounded)
-          for i in $(seq 1 60); do
-            booted=$(xcrun simctl list devices booted | grep -c "Booted" || true)
-            [ "$booted" -ge 2 ] && break
-            sleep 5
+          if [ "$TARGET" = "ipad" ]; then
+            DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=[n for n in names if n.startswith("iPad Pro") and ("13-inch" in n or "12.9" in n)]; print(cand[0] if cand else "")')
+          else
+            DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=sorted([n for n in names if re.match(r"iPhone 1[5-9].*Pro Max$", n)], key=lambda s:int(re.search(r"iPhone (\d+)", s).group(1)), reverse=True); print(cand[0] if cand else "")')
+          fi
+          echo "device: $DEVICE"
+          test -n "$DEVICE" || { echo "::error::No matching simulator"; exit 1; }
+
+          xcrun simctl boot "$DEVICE" 2>/dev/null || true
+          xcrun simctl bootstatus "$DEVICE" -b || true
+          xcrun simctl install "$DEVICE" "$APP"
+          xcrun simctl status_bar "$DEVICE" override \
+            --time "9:41" --batteryState charged --batteryLevel 100 \
+            --wifiBars 3 --cellularBars 4 2>/dev/null || true
+          xcrun simctl terminate "$DEVICE" "$BUNDLE_ID" 2>/dev/null || true
+          xcrun simctl launch "$DEVICE" "$BUNDLE_ID"
+          sleep 5
+
+          xcrun simctl io "$DEVICE" screenshot "shots/$TARGET/01-today.png"
+          for pair in "pipeline:02-pipeline" "clients:03-clients" "followups:04-follow-ups"; do
+            host="${pair%%:*}"; name="${pair##*:}"
+            xcrun simctl openurl "$DEVICE" "followdeck://$host" || true
+            sleep 2
+            xcrun simctl io "$DEVICE" screenshot "shots/$TARGET/$name.png"
           done
-          xcrun simctl list devices booted | head -10
-
-          shoot() {
-            device="$1"; out="$2"
-            echo "--- $device"
-            xcrun simctl install "$device" "$APP"
-            xcrun simctl status_bar "$device" override \
-              --time "9:41" --batteryState charged --batteryLevel 100 \
-              --wifiBars 3 --cellularBars 4 2>/dev/null || true
-            xcrun simctl terminate "$device" "$BUNDLE_ID" 2>/dev/null || true
-            xcrun simctl launch "$device" "$BUNDLE_ID" >/dev/null
-            sleep 4
-            xcrun simctl io "$device" screenshot "$out/01-today.png"
-            for pair in "pipeline:02-pipeline" "clients:03-clients" "followups:04-follow-ups"; do
-              host="${pair%%:*}"; name="${pair##*:}"
-              xcrun simctl openurl "$device" "followdeck://$host" || true
-              sleep 2
-              xcrun simctl io "$device" screenshot "$out/$name.png"
-            done
-            xcrun simctl status_bar "$device" clear 2>/dev/null || true
-          }
-
-          shoot "$IPHONE" shots/iphone
-          shoot "$IPAD" shots/ipad
 
           python3 - <<'PY'
           import glob, struct
@@ -120,6 +109,6 @@ jobs:
       - name: Upload screenshot artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: followdeck-screenshots
+          name: followdeck-screenshots-${{ github.event.inputs.target || 'iphone' }}
           path: shots/
           if-no-files-found: error
