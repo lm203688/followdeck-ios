@@ -116,4 +116,33 @@ final class SubscriptionManagerTests: XCTestCase {
 
         XCTAssertEqual(manager.products.map(\.id), [ProductIDs.monthly, ProductIDs.yearly])
     }
+
+    func testReloadAssemblesPaywallPresentation() async {
+        let (manager, mock) = makeManager()
+        mock.stubbedProducts = [
+            DisplayProduct(id: ProductIDs.monthly, name: "Pro Monthly", priceDisplay: "$4.99", period: "1 month"),
+            DisplayProduct(id: ProductIDs.yearly, name: "Pro Yearly", priceDisplay: "$29.99", period: "1 year")
+        ]
+
+        await manager.reload()
+
+        let presentation = manager.presentation
+        XCTAssertEqual(presentation.plans.map(\.id), [ProductIDs.yearly, ProductIDs.monthly])
+        XCTAssertEqual(presentation.recommended?.id, ProductIDs.yearly)
+        XCTAssertTrue(presentation.hasPlans)
+        XCTAssertEqual(presentation.features, PaywallCatalog.proFeatures)
+    }
+
+    func testEmptyProductsPresentationHasNoPlans() async {
+        let (manager, mock) = makeManager()
+        mock.stubbedProducts = []
+
+        await manager.reload()
+
+        let presentation = manager.presentation
+        XCTAssertFalse(presentation.hasPlans)
+        XCTAssertEqual(presentation.plans, [])
+        XCTAssertNil(presentation.recommended)
+        XCTAssertEqual(presentation.features, PaywallCatalog.proFeatures)
+    }
 }
