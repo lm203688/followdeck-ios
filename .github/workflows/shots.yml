@@ -19,7 +19,9 @@ env:
 jobs:
   screenshots:
     name: Screenshots (${{ github.event.inputs.target || 'iphone' }})
-    runs-on: xcode-27
+    # Screenshots do not need the iOS 27 SDK: a hosted macOS image boots simulators
+    # far faster than the self-hosted runner, and has the 6.9" / 13" devices.
+    runs-on: macos-15
     timeout-minutes: 40
     steps:
       - name: Checkout
