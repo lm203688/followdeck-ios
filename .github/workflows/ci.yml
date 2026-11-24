@@ -258,11 +258,18 @@ jobs:
             -exportPath "$RUNNER_TEMP/ipa" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
 
+          # The upload action does not expand globs: pin the IPA to a concrete path so the
+          # adm-zip backend can open an existing file.
+          ls -la "$RUNNER_TEMP/ipa"
+          IPA=$(find "$RUNNER_TEMP/ipa" -maxdepth 1 -name "*.ipa" | head -n 1)
+          test -n "$IPA" || { echo "::error::No IPA exported to $RUNNER_TEMP/ipa"; exit 1; }
+          cp "$IPA" "$RUNNER_TEMP/ipa/FollowDeck.ipa"
+
       - name: Upload to TestFlight
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
         uses: apple-actions/upload-testflight-build@v5
         with:
-          app-path: ${{ runner.temp }}/ipa/*.ipa
+          app-path: ${{ runner.temp }}/ipa/FollowDeck.ipa
           app-type: ios
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
