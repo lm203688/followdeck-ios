@@ -4,7 +4,7 @@
 //
 //  System / Siri integration. Intents read and write through the shared SwiftData
 //  store; entities resolve through the AppEntity + EntityQuery pickers in Entities.swift.
-//  See docs/INTENTS.md for the full intent list.
+//  Six intents cover logging interactions, follow-ups, next-up, completion, client status and suggestions.
 //
 
 import AppIntents

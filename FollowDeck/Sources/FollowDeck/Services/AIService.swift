@@ -2,7 +2,7 @@
 //  AIService.swift
 //  FollowDeck
 //
-//  AI capability tiers (see 01-生态战略原则与方向框架 §AI 应用方向, 05 立项书 §9):
+//  AI capability tiers:
 //   1. Native first: on-device / system frameworks for summaries, reminder suggestions, intent parsing.
 //   2. API key fallback: third-party or in-house model for generation the native stack cannot cover.
 //
