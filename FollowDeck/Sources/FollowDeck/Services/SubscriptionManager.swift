@@ -32,6 +32,13 @@ final class SubscriptionManager: ObservableObject {
 
     var isPro: Bool { entitlement == .pro }
 
+    /// Ready-to-display paywall content assembled from the loaded products. The SwiftUI
+    /// paywall view will consume this in the Pro batch; it only mirrors the current
+    /// product list through the deterministic catalog rules.
+    var presentation: PaywallPresentation {
+        PaywallAssembly.presentation(products: products)
+    }
+
     /// Load the current entitlement and begin listening for transaction updates.
     func start() {
         refresh()
