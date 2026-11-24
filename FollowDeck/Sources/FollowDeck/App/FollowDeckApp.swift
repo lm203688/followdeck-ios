@@ -65,6 +65,9 @@ struct RootView: View {
                 .tag(Tab.followUps)
         }
         .onAppear {
+            // Screenshot runs must never surface a system permission alert over the UI.
+            let isCaptureRun = ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-uiTab=") }
+            guard !isCaptureRun else { return }
             Task { try? await ReminderService.shared.requestAuthorization() }
         }
         .onOpenURL { url in
