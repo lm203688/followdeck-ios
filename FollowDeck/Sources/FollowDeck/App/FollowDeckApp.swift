@@ -12,21 +12,17 @@ import SwiftData
 @main
 struct FollowDeckApp: App {
     @StateObject private var bridge: StoreBridge
-    @StateObject private var subscriptions: SubscriptionManager
 
     init() {
         let store = PersistenceController.shared.makeStore()
         SampleData.seedIfEmpty(store: store)
         _bridge = StateObject(wrappedValue: StoreBridge(store: store))
-        _subscriptions = StateObject(wrappedValue: SubscriptionManager())
     }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(bridge)
-                .environmentObject(subscriptions)
-                .onAppear { subscriptions.start() }
         }
     }
 }
@@ -37,7 +33,21 @@ struct RootView: View {
         case today, pipeline, clients, followUps
     }
 
-    @State private var selectedTab: Tab = .today
+    @State private var selectedTab: Tab = RootView.launchTab
+
+    /// Screenshot tooling opens a specific tab directly (`-uiTab=pipeline` etc.) instead of
+    /// driving the UI, so App Store captures never depend on tap gestures or URL prompts.
+    private static var launchTab: Tab {
+        for arg in ProcessInfo.processInfo.arguments where arg.hasPrefix("-uiTab=") {
+            switch arg.dropFirst("-uiTab=".count) {
+            case "pipeline": return .pipeline
+            case "clients": return .clients
+            case "followups": return .followUps
+            default: return .today
+            }
+        }
+        return .today
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
