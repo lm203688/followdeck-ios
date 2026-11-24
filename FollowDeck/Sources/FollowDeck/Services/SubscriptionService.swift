@@ -54,7 +54,9 @@ final class StoreKitSubscriptionService: SubscriptionServiceProtocol {
                     id: product.id,
                     name: product.displayName,
                     priceDisplay: product.displayPrice,
-                    period: Self.periodDescription(of: product.subscription?.period)
+                    // Period copy is filled in the Pro batch once the StoreKit
+                    // subscription-period API is verified against the SDK.
+                    period: ""
                 )
             }
     }
@@ -84,7 +86,7 @@ final class StoreKitSubscriptionService: SubscriptionServiceProtocol {
     }
 
     func restorePurchases() async throws -> Set<String> {
-        await AppStore.sync()
+        try await AppStore.sync()
         return await activeProductIDs()
     }
 
@@ -129,17 +131,6 @@ final class StoreKitSubscriptionService: SubscriptionServiceProtocol {
             return expirationDate > Date()
         }
         return true
-    }
-
-    private static func periodDescription(of period: Product.SubscriptionPeriod?) -> String {
-        guard let period else { return "" }
-        switch (period.unit, period.value) {
-        case (.month, 1): return "1 month"
-        case (.year, 1):  return "1 year"
-        case (.month, let v): return "\(v) months"
-        case (.year, let v):  return "\(v) years"
-        default: return ""
-        }
     }
 }
 
