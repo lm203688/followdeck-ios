@@ -60,16 +60,19 @@ final class SubscriptionManager: ObservableObject {
 
     /// Restore purchases from the App Store and update the local entitlement.
     func restorePurchases() {
-        Task {
-            isRestoring = true
-            defer { isRestoring = false }
-            do {
-                let active = try await service.restorePurchases()
-                apply(activeProductIDs: active)
-                message = active.isEmpty ? "No active subscription found." : "Purchases restored."
-            } catch {
-                message = "Could not restore purchases. Please try again."
-            }
+        Task { await performRestore() }
+    }
+
+    /// Async restore execution, exposed so tests can await the state flow directly.
+    func performRestore() async {
+        isRestoring = true
+        defer { isRestoring = false }
+        do {
+            let active = try await service.restorePurchases()
+            apply(activeProductIDs: active)
+            message = active.isEmpty ? "No active subscription found." : "Purchases restored."
+        } catch {
+            message = "Could not restore purchases. Please try again."
         }
     }
 
@@ -77,18 +80,21 @@ final class SubscriptionManager: ObservableObject {
     /// The actual StoreKit sheet is presented by the service layer; the manager only
     /// forwards the request, tracks the in-flight state and mirrors the result.
     func purchase(productID: String) {
-        Task {
-            isPurchasing = true
-            defer { isPurchasing = false }
-            do {
-                let active = try await service.purchase(productID: productID)
-                apply(activeProductIDs: active)
-                message = active.isEmpty ? "Purchase completed." : "Welcome to FollowDeck Pro."
-            } catch SubscriptionError.userCancelled {
-                message = "Purchase cancelled."
-            } catch {
-                message = "Could not complete purchase. Please try again."
-            }
+        Task { await performPurchase(productID: productID) }
+    }
+
+    /// Async purchase execution, exposed so tests can await the state flow directly.
+    func performPurchase(productID: String) async {
+        isPurchasing = true
+        defer { isPurchasing = false }
+        do {
+            let active = try await service.purchase(productID: productID)
+            apply(activeProductIDs: active)
+            message = active.isEmpty ? "Purchase completed." : "Welcome to FollowDeck Pro."
+        } catch SubscriptionError.userCancelled {
+            message = "Purchase cancelled."
+        } catch {
+            message = "Could not complete purchase. Please try again."
         }
     }
 
