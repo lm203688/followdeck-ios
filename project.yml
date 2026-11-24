@@ -34,6 +34,8 @@ targets:
       TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       CODE_STYLE: Swift
+      # Manual signing (Route B CI lane): matched to the "FollowDeck App Store" profile.
+      PROVISIONING_PROFILE_SPECIFIER: "FollowDeck App Store"
     dependencies:
       - target: FollowDeckWidget
         embed: true
@@ -52,6 +54,8 @@ targets:
       GENERATE_INFOPLIST_FILE: NO
       TARGETED_DEVICE_FAMILY: "1,2"
       CODE_STYLE: Swift
+      # Manual signing (Route B CI lane): matched to the widget's own App Store profile.
+      PROVISIONING_PROFILE_SPECIFIER: "FollowDeck Widget App Store"
     dependencies: []
 
   FollowDeckTests:
