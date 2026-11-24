@@ -191,17 +191,13 @@ jobs:
           # Distribution .p12 into a throwaway keychain; partition list prevents a hanging
           # codesign prompt.
           echo "$DIST_CERT_P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
-          KEYCHAIN="$HOME/Library/Keychains/ci-signing.keychain-db"
-          # Fresh throwaway keychain in the standard Keychains directory; newer macOS
-          # builds do not recognize a keychain created under a non-standard temp path.
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
           security create-keychain -p "$DIST_CERT_PASSWORD" "$KEYCHAIN"
-          test -f "$KEYCHAIN" || { echo "::error::keychain file not created at $KEYCHAIN"; exit 1; }
-          security list-keychains -d user -s "$KEYCHAIN" "$HOME/Library/Keychains/login.keychain-db"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
           security unlock-keychain -p "$DIST_CERT_PASSWORD" "$KEYCHAIN"
-          security import "$RUNNER_TEMP/dist.p12" -P "$DIST_CERT_PASSWORD" -t cert -f pkcs12 -A -keychain "$KEYCHAIN"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$DIST_CERT_PASSWORD" "$KEYCHAIN"
-          security list-keychains
+          security import "$RUNNER_TEMP/dist.p12" -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$DIST_CERT_PASSWORD" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
 
           # App Store profile: resolve its UUID and place it under the profiles directory.
           echo "$PROVISIONING_PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
