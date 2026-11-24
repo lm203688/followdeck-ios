@@ -322,7 +322,9 @@ jobs:
           BUILD=$(plutil -extract CFBundleVersion raw "$APP/Info.plist")
           SDK_NAME=$(plutil -extract DTSDKName raw "$APP/Info.plist" 2>/dev/null || echo unknown)
           echo "IPA: version $VERSION build $BUILD, $SDK_NAME"
-          test "$BUILD" = "2" || { echo "::error::Expected build 2, got $BUILD"; exit 1; }
+          EXPECTED_BUILD=$(sed -E -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION:[[:space:]]*"([0-9]+)".*/\1/p' "$GITHUB_WORKSPACE/project.yml")
+          test -n "$EXPECTED_BUILD" || { echo "::error::Could not read CURRENT_PROJECT_VERSION from project.yml"; exit 1; }
+          test "$BUILD" = "$EXPECTED_BUILD" || { echo "::error::Expected build $EXPECTED_BUILD, got $BUILD"; exit 1; }
           case "$SDK_NAME" in
             iphoneos27*|iphoneos28*|iphoneos29*) ;;
             *) echo "::error::IPA was linked against $SDK_NAME (ITMS-90725 needs ios27+)"; exit 1 ;;
