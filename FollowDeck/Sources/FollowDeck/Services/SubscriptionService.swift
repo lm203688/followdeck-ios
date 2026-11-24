@@ -54,9 +54,10 @@ final class StoreKitSubscriptionService: SubscriptionServiceProtocol {
                     id: product.id,
                     name: product.displayName,
                     priceDisplay: product.displayPrice,
-                    // Period copy is filled in the Pro batch once the StoreKit
-                    // subscription-period API is verified against the SDK.
-                    period: ""
+                    // Period copy is derived from the deterministic catalog rules
+                    // (see PaywallCatalog.period(for:)) rather than the localized
+                    // StoreKit period format, so it stays stable off-device.
+                    period: PaywallCatalog.period(for: product.id)
                 )
             }
     }
