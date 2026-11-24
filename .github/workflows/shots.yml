@@ -89,15 +89,13 @@ jobs:
             --time "9:41" --batteryState charged --batteryLevel 100 \
             --wifiBars 3 --cellularBars 4 2>/dev/null || true
           xcrun simctl terminate "$DEVICE" "$BUNDLE_ID" 2>/dev/null || true
-          xcrun simctl launch "$DEVICE" "$BUNDLE_ID"
-          sleep 5
-
-          xcrun simctl io "$DEVICE" screenshot "shots/$TARGET/01-today.png"
-          for pair in "pipeline:02-pipeline" "clients:03-clients" "followups:04-follow-ups"; do
+          # Each tab is a cold launch with -uiTab, so no URL prompt or tap gesture is involved.
+          for pair in "today:01-today" "pipeline:02-pipeline" "clients:03-clients" "followups:04-follow-ups"; do
             host="${pair%%:*}"; name="${pair##*:}"
-            xcrun simctl openurl "$DEVICE" "followdeck://$host" || true
-            sleep 2
+            xcrun simctl launch "$DEVICE" "$BUNDLE_ID" "-uiTab=$host" >/dev/null
+            sleep 4
             xcrun simctl io "$DEVICE" screenshot "shots/$TARGET/$name.png"
+            xcrun simctl terminate "$DEVICE" "$BUNDLE_ID" 2>/dev/null || true
           done
 
           python3 - <<'PY'
