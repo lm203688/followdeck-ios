@@ -18,6 +18,8 @@ final class SubscriptionManager: ObservableObject {
     @Published var products: [DisplayProduct] = []
     /// Whether a restore-purchases pass is in flight.
     @Published var isRestoring = false
+    /// Whether a purchase pass is in flight.
+    @Published var isPurchasing = false
     /// Short user-facing status message (restore / errors).
     @Published var message: String?
 
@@ -67,6 +69,25 @@ final class SubscriptionManager: ObservableObject {
                 message = active.isEmpty ? "No active subscription found." : "Purchases restored."
             } catch {
                 message = "Could not restore purchases. Please try again."
+            }
+        }
+    }
+
+    /// Purchase the Pro product with the given ID and update the local entitlement.
+    /// The actual StoreKit sheet is presented by the service layer; the manager only
+    /// forwards the request, tracks the in-flight state and mirrors the result.
+    func purchase(productID: String) {
+        Task {
+            isPurchasing = true
+            defer { isPurchasing = false }
+            do {
+                let active = try await service.purchase(productID: productID)
+                apply(activeProductIDs: active)
+                message = active.isEmpty ? "Purchase completed." : "Welcome to FollowDeck Pro."
+            } catch SubscriptionError.userCancelled {
+                message = "Purchase cancelled."
+            } catch {
+                message = "Could not complete purchase. Please try again."
             }
         }
     }
