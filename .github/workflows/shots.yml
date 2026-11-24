@@ -1,0 +1,116 @@
+name: shots
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "shots/**"
+      - ".github/workflows/shots.yml"
+
+env:
+  SCHEME: FollowDeck
+  BUNDLE_ID: com.lixing.followdeck
+
+jobs:
+  screenshots:
+    name: App Store screenshots (iPhone 6.9 + iPad 13)
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest usable Xcode
+        run: |
+          set -euo pipefail
+          chosen=""
+          for app in $(ls -d /Applications/Xcode*.app 2>/dev/null | sort -Vr); do
+            if [ -d "$app/Contents/Developer" ]; then chosen="$app"; break; fi
+          done
+          test -n "$chosen" || { echo "::error::No Xcode toolchain"; exit 1; }
+          sudo xcode-select -s "$chosen/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          if command -v xcodegen >/dev/null 2>&1; then xcodegen --version; exit 0; fi
+          if command -v brew >/dev/null 2>&1; then brew install xcodegen && xcodegen --version && exit 0; fi
+          mkdir -p "$RUNNER_TEMP/xcodegen" "$HOME/.local/bin"
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+            https://github.com/yonaskolb/XcodeGen/releases/latest/download/xcodegen.zip
+          unzip -q -o "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          bin=$(find "$RUNNER_TEMP/xcodegen" -type f -name xcodegen -perm -u+x | head -1)
+          test -n "$bin" || { echo "::error::xcodegen binary not found"; exit 1; }
+          cp "$bin" "$HOME/.local/bin/xcodegen"; chmod +x "$HOME/.local/bin/xcodegen"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for simulator
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project FollowDeck.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            -quiet
+
+      - name: Capture screenshots
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/FollowDeck.app"
+          test -d "$APP" || { echo "::error::App not built"; exit 1; }
+          mkdir -p shots/iphone shots/ipad
+
+          shoot() {
+            device="$1"; out="$2"
+            echo "--- $device"
+            xcrun simctl boot "$device" 2>/dev/null || true
+            xcrun simctl bootstatus "$device" -b >/dev/null 2>&1 || true
+            xcrun simctl install "$device" "$APP"
+            xcrun simctl status_bar "$device" override \
+              --time "9:41" --batteryState charged --batteryLevel 100 \
+              --wifiBars 3 --cellularBars 4 2>/dev/null || true
+            xcrun simctl terminate "$device" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch "$device" "$BUNDLE_ID" >/dev/null
+            sleep 4
+            xcrun simctl io "$device" screenshot "$out/01-today.png"
+            for pair in "pipeline:02-pipeline" "clients:03-clients" "followups:04-follow-ups"; do
+              host="${pair%%:*}"; name="${pair##*:}"
+              xcrun simctl openurl "$device" "followdeck://$host" || true
+              sleep 2
+              xcrun simctl io "$device" screenshot "$out/$name.png"
+            done
+            xcrun simctl status_bar "$device" clear 2>/dev/null || true
+            xcrun simctl shutdown "$device" 2>/dev/null || true
+          }
+
+          IPHONE=$(xcrun simctl list devices available | grep -oE "iPhone 1[5-9]( Pro)?( Max)?" | sort -Vr | head -1)
+          IPAD=$(xcrun simctl list devices available | grep -oE "iPad Pro 1[23]-inch[^\"]*" | head -1)
+          echo "iPhone device: $IPHONE"
+          echo "iPad device: $IPAD"
+          test -n "$IPHONE" || { echo "::error::No iPhone simulator"; exit 1; }
+          test -n "$IPAD" || { echo "::error::No iPad simulator"; exit 1; }
+
+          shoot "$IPHONE" shots/iphone
+          shoot "$IPAD" shots/ipad
+
+          python3 - <<'PY'
+          import glob, struct
+          for p in sorted(glob.glob("shots/*/*.png")):
+              d = open(p, "rb").read()
+              w, h = struct.unpack(">II", d[16:24])
+              print(f"{p}: {w}x{h}")
+          PY
+
+      - name: Upload screenshot artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: followdeck-screenshots
+          path: shots/
+          if-no-files-found: error
