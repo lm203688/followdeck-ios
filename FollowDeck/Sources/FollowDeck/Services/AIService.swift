@@ -28,12 +28,12 @@ protocol AIServiceProtocol: AnyObject {
     func draftReengagementMessage(for client: Client, context: String) async throws -> String
 }
 
-/// Placeholder until native Apple Intelligence / on-device or secure backend integration is wired on macOS.
-/// The current tier is a transparent local rule engine: stage-based cadence, dwell-time awareness
-/// and last-contact channel. Every suggestion is labelled `native`; nothing leaves the device.
+/// Local rule-engine tier until native on-device or secure backend integration ships in a
+/// later release. The current tier uses stage-based cadence, dwell-time awareness and
+/// last-contact channel. Every suggestion is labelled `native`; nothing leaves the device.
 final class AIService: AIServiceProtocol {
     func suggestNextStep(for deal: Deal, history: [Interaction]) async throws -> NextStepSuggestion {
-        // TODO(macOS): prefer on-device/native framework; fall back to secure backend only if needed.
+        // TODO(later): prefer on-device/native framework; fall back to secure backend only if needed.
         let calendar = Calendar.current
         let now = Date()
         let daysStale = max(0, calendar.dateComponents([.day], from: deal.updatedAt, to: now).day ?? 0)
@@ -81,7 +81,7 @@ final class AIService: AIServiceProtocol {
     }
 
     func draftReengagementMessage(for client: Client, context: String) async throws -> String {
-        // TODO(macOS): produce an editable draft; never auto-send.
+        // TODO(later): produce an editable draft; never auto-send.
         return "Hi \(client.name), just checking in on \(context). Let me know if you need anything from me."
     }
 }

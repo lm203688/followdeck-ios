@@ -2,8 +2,8 @@
 //  Models.swift
 //  FollowDeck
 //
-//  Data model draft — see 05-首发应用立项书-草案-v0.1.md §7.
-//  Persistence layer (SwiftData / Core Data) is wired up in the Xcode project on macOS.
+//  Plain Codable data models. Persistence is provided by SwiftData through
+//  SwiftDataStore; these types hold the record structure shared across the app.
 //
 
 import Foundation

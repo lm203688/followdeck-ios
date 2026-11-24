@@ -2,8 +2,8 @@
 //  Store.swift
 //  FollowDeck
 //
-//  Data store protocol. The concrete implementation will use SwiftData (or Core Data)
-//  on macOS; this protocol keeps features decoupled from the persistence choice.
+//  Data store protocol. The production implementation is SwiftDataStore;
+//  this protocol keeps features decoupled from the persistence choice.
 //
 
 import Foundation
