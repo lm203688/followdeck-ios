@@ -8,6 +8,9 @@
 ## Fixed product constraints (locked)
 
 - **Platform:** Apple ecosystem only (iPhone / iPad, Mac if needed). No Android, no web at launch.
+- **Device / OS fit:** Target current and recently released Apple devices and OS versions; adapt to new
+  screen sizes, form factors and platform features, while keeping backward compatibility with supported
+  older devices and OS releases. Do not build against only legacy hardware or an old SDK.
 - **Language:** English only — UI, store metadata, marketing and support copy.
 - **Regions:** All overseas App Store regions are allowed; **mainland China is excluded**.
 - **AI:** Prefer native platform AI integration (Apple Intelligence / Siri AI / App Intents); third-party or
