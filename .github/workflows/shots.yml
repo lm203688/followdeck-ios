@@ -91,7 +91,7 @@ jobs:
           }
 
           IPHONE=$(xcrun simctl list devices available | grep -oE "iPhone 1[5-9]( Pro)?( Max)?" | sort -Vr | head -1)
-          IPAD=$(xcrun simctl list devices available | grep -oE "iPad Pro 1[23]-inch[^\"]*" | head -1)
+          IPAD=$(xcrun simctl list devices available | grep -oE "iPad Pro 1[23]-inch[^(]*" | head -1 | sed 's/[[:space:]]*$//')
           echo "iPhone device: $IPHONE"
           echo "iPad device: $IPAD"
           test -n "$IPHONE" || { echo "::error::No iPhone simulator"; exit 1; }
