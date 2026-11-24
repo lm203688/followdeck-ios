@@ -157,10 +157,11 @@ jobs:
           DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
           PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+          PROVISIONING_PROFILE_WIDGET: ${{ secrets.PROVISIONING_PROFILE_WIDGET }}
         run: |
           set -euo pipefail
           missing=""
-          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_CONTENT DIST_CERT_P12 DIST_CERT_PASSWORD PROVISIONING_PROFILE; do
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_CONTENT DIST_CERT_P12 DIST_CERT_PASSWORD PROVISIONING_PROFILE PROVISIONING_PROFILE_WIDGET; do
             if [ -z "${!v:-}" ]; then missing="$missing $v"; fi
           done
           if [ -n "$missing" ]; then
@@ -178,6 +179,7 @@ jobs:
           DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
           PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+          PROVISIONING_PROFILE_WIDGET: ${{ secrets.PROVISIONING_PROFILE_WIDGET }}
         run: |
           set -euo pipefail
           umask 077
@@ -199,12 +201,20 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$DIST_CERT_PASSWORD" "$KEYCHAIN"
           security list-keychain -d user -s "$KEYCHAIN"
 
-          # App Store profile: resolve its UUID and place it under the profiles directory.
-          echo "$PROVISIONING_PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
-          PROFILE_UUID=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract UUID raw -)
-          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
-          echo "profile_uuid=$PROFILE_UUID" >> "$GITHUB_OUTPUT"
-          echo "Prepared signing material (profile UUID $PROFILE_UUID)."
+          # App Store profiles: one for the main app, one for the widget extension. Each is
+          # decoded, its UUID resolved, and installed under the profiles directory.
+          install_profile() {
+            local b64="$1" out="$2" uuid_var="$3"
+            echo "$b64" | base64 --decode > "$out"
+            local uuid
+            uuid=$(security cms -D -i "$out" | plutil -extract UUID raw -)
+            cp "$out" "$HOME/Library/MobileDevice/Provisioning Profiles/${uuid}.mobileprovision"
+            echo "${uuid_var}=${uuid}" >> "$GITHUB_OUTPUT"
+            echo "Installed profile $uuid_var: $uuid"
+          }
+          install_profile "$PROVISIONING_PROFILE" "$RUNNER_TEMP/profile.mobileprovision" "profile_uuid"
+          install_profile "$PROVISIONING_PROFILE_WIDGET" "$RUNNER_TEMP/profile_widget.mobileprovision" "profile_uuid_widget"
+          echo "Prepared signing material."
 
       - name: Archive Release build
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
@@ -225,18 +235,19 @@ jobs:
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
         env:
           PROFILE_UUID: ${{ steps.prepare.outputs.profile_uuid }}
+          PROFILE_UUID_WIDGET: ${{ steps.prepare.outputs.profile_uuid_widget }}
         run: |
           set -euo pipefail
-          python3 - "$RUNNER_TEMP/ExportOptions.plist" "$PROFILE_UUID" <<'PY'
+          python3 - "$RUNNER_TEMP/ExportOptions.plist" "$PROFILE_UUID" "$PROFILE_UUID_WIDGET" <<'PY'
           import sys, plistlib
-          path, uuid = sys.argv[1], sys.argv[2]
+          path, uuid, uuid_widget = sys.argv[1], sys.argv[2], sys.argv[3]
           data = {
               "method": "app-store",
               "teamID": "98KA35Y747",
               "compileBitcode": False,
               "provisioningProfiles": {
                   "com.lixing.followdeck": uuid,
-                  "com.lixing.followdeck.widget": uuid,
+                  "com.lixing.followdeck.widget": uuid_widget,
               },
           }
           with open(path, "wb") as f:
