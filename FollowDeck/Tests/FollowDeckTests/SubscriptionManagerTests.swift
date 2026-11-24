@@ -38,106 +38,82 @@ private final class MockSubscriptionService: SubscriptionServiceProtocol {
     }
 }
 
+@MainActor
 final class SubscriptionManagerTests: XCTestCase {
 
-    @MainActor
     private func makeManager() -> (SubscriptionManager, MockSubscriptionService) {
         let mock = MockSubscriptionService()
         let manager = SubscriptionManager(service: mock)
         return (manager, mock)
     }
 
-    @MainActor
-    private func wait(_ condition: @escaping () -> Bool, timeout: TimeInterval = 3) async {
-        let start = Date()
-        while !condition() {
-            if Date().timeIntervalSince(start) > timeout {
-                XCTFail("timed out waiting for condition")
-                return
-            }
-            try? await Task.sleep(nanoseconds: 50_000_000)
-        }
-    }
-
     func testSuccessfulPurchaseGrantsPro() async {
-        await MainActor.run {
-            let (manager, mock) = makeManager()
-            mock.purchaseResult = [ProductIDs.yearly]
+        let (manager, mock) = makeManager()
+        mock.purchaseResult = [ProductIDs.yearly]
 
-            manager.purchase(productID: ProductIDs.yearly)
-            await wait { manager.isPurchasing == false }
+        await manager.performPurchase(productID: ProductIDs.yearly)
 
-            XCTAssertEqual(mock.purchasedProductIDs, [ProductIDs.yearly])
-            XCTAssertEqual(manager.entitlement, .pro)
-            XCTAssertTrue(manager.isPro)
-            XCTAssertEqual(manager.message, "Welcome to FollowDeck Pro.")
-        }
+        XCTAssertEqual(mock.purchasedProductIDs, [ProductIDs.yearly])
+        XCTAssertEqual(manager.entitlement, .pro)
+        XCTAssertTrue(manager.isPro)
+        XCTAssertEqual(manager.message, "Welcome to FollowDeck Pro.")
+        XCTAssertFalse(manager.isPurchasing)
     }
 
     func testCancelledPurchaseStaysFree() async {
-        await MainActor.run {
-            let (manager, mock) = makeManager()
-            mock.purchaseError = SubscriptionError.userCancelled
+        let (manager, mock) = makeManager()
+        mock.purchaseError = SubscriptionError.userCancelled
 
-            manager.purchase(productID: ProductIDs.monthly)
-            await wait { manager.isPurchasing == false }
+        await manager.performPurchase(productID: ProductIDs.monthly)
 
-            XCTAssertEqual(manager.entitlement, .free)
-            XCTAssertEqual(manager.message, "Purchase cancelled.")
-        }
+        XCTAssertEqual(manager.entitlement, .free)
+        XCTAssertEqual(manager.message, "Purchase cancelled.")
+        XCTAssertFalse(manager.isPurchasing)
     }
 
     func testFailedPurchaseKeepsFreeAndReportsError() async {
-        await MainActor.run {
-            let (manager, mock) = makeManager()
-            mock.purchaseError = SubscriptionError.unverifiedTransaction
+        let (manager, mock) = makeManager()
+        mock.purchaseError = SubscriptionError.unverifiedTransaction
 
-            manager.purchase(productID: ProductIDs.yearly)
-            await wait { manager.isPurchasing == false }
+        await manager.performPurchase(productID: ProductIDs.yearly)
 
-            XCTAssertEqual(manager.entitlement, .free)
-            XCTAssertEqual(manager.message, "Could not complete purchase. Please try again.")
-        }
+        XCTAssertEqual(manager.entitlement, .free)
+        XCTAssertEqual(manager.message, "Could not complete purchase. Please try again.")
+        XCTAssertFalse(manager.isPurchasing)
     }
 
     func testRestorePurchasesGrantsPro() async {
-        await MainActor.run {
-            let (manager, mock) = makeManager()
-            mock.stubbedActive = [ProductIDs.monthly]
+        let (manager, mock) = makeManager()
+        mock.stubbedActive = [ProductIDs.monthly]
 
-            manager.restorePurchases()
-            await wait { manager.isRestoring == false }
+        await manager.performRestore()
 
-            XCTAssertTrue(mock.restoreCalled)
-            XCTAssertEqual(manager.entitlement, .pro)
-            XCTAssertEqual(manager.message, "Purchases restored.")
-        }
+        XCTAssertTrue(mock.restoreCalled)
+        XCTAssertEqual(manager.entitlement, .pro)
+        XCTAssertEqual(manager.message, "Purchases restored.")
+        XCTAssertFalse(manager.isRestoring)
     }
 
     func testRestoreWithNoActiveSubscriptionStaysFree() async {
-        await MainActor.run {
-            let (manager, mock) = makeManager()
-            mock.stubbedActive = []
+        let (manager, mock) = makeManager()
+        mock.stubbedActive = []
 
-            manager.restorePurchases()
-            await wait { manager.isRestoring == false }
+        await manager.performRestore()
 
-            XCTAssertEqual(manager.entitlement, .free)
-            XCTAssertEqual(manager.message, "No active subscription found.")
-        }
+        XCTAssertEqual(manager.entitlement, .free)
+        XCTAssertEqual(manager.message, "No active subscription found.")
+        XCTAssertFalse(manager.isRestoring)
     }
 
     func testReloadPublishesStoreProducts() async {
-        await MainActor.run {
-            let (manager, mock) = makeManager()
-            mock.stubbedProducts = [
-                DisplayProduct(id: ProductIDs.monthly, name: "Pro Monthly", priceDisplay: "$4.99", period: "1 month"),
-                DisplayProduct(id: ProductIDs.yearly, name: "Pro Yearly", priceDisplay: "$29.99", period: "1 year")
-            ]
+        let (manager, mock) = makeManager()
+        mock.stubbedProducts = [
+            DisplayProduct(id: ProductIDs.monthly, name: "Pro Monthly", priceDisplay: "$4.99", period: "1 month"),
+            DisplayProduct(id: ProductIDs.yearly, name: "Pro Yearly", priceDisplay: "$29.99", period: "1 year")
+        ]
 
-            await manager.reload()
+        await manager.reload()
 
-            XCTAssertEqual(manager.products.map(\.id), [ProductIDs.monthly, ProductIDs.yearly])
-        }
+        XCTAssertEqual(manager.products.map(\.id), [ProductIDs.monthly, ProductIDs.yearly])
     }
 }
