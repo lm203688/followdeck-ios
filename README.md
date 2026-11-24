@@ -16,8 +16,8 @@
 - **AI:** Prefer native platform AI integration (Apple Intelligence / Siri AI / App Intents); third-party or
   in-house API key integration is the fallback. Keys are never hard-coded in the client or committed to this repo.
 - **Account:** Individual Apple Developer account; membership is active.
-- **Backup:** Every important document and decision is archived under `00-备份台账/`; secrets are stored in a
-  keychain / password manager and kept out of all tracked files.
+- **Backup:** Every important document and decision is archived in the private docs repo's backup ledger;
+  secrets are stored in a keychain / password manager and kept out of all tracked files.
 
 ## Differentiation (why this is not another personal CRM)
 
@@ -76,5 +76,5 @@ and this README only.
 
 ## License / ownership
 
-Internal working repository for the owner. Third-party open-source licenses to be recorded in `00-备份台账/素材授权/`
-before any dependency is added.
+Internal working repository for the owner. Third-party open-source licenses are recorded in the private
+docs repo's asset-authorization ledger before any dependency is added.
