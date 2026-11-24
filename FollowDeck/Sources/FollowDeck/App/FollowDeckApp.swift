@@ -12,17 +12,21 @@ import SwiftData
 @main
 struct FollowDeckApp: App {
     @StateObject private var bridge: StoreBridge
+    @StateObject private var subscriptions: SubscriptionManager
 
     init() {
         let store = PersistenceController.shared.makeStore()
         SampleData.seedIfEmpty(store: store)
         _bridge = StateObject(wrappedValue: StoreBridge(store: store))
+        _subscriptions = StateObject(wrappedValue: SubscriptionManager())
     }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(bridge)
+                .environmentObject(subscriptions)
+                .onAppear { subscriptions.start() }
         }
     }
 }
