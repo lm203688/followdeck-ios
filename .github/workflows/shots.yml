@@ -2,10 +2,6 @@ name: shots
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "shots/**"
-      - ".github/workflows/shots.yml"
 
 env:
   SCHEME: FollowDeck
@@ -15,10 +11,25 @@ jobs:
   screenshots:
     name: App Store screenshots (iPhone 6.9 + iPad 13)
     runs-on: xcode-27
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Pick simulators and warm them up
+        run: |
+          set -euo pipefail
+          IPHONE=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=sorted([n for n in names if re.match(r"iPhone 1[5-9].*Pro Max$", n)], key=lambda s:int(re.search(r"iPhone (\d+)", s).group(1)), reverse=True); print(cand[0] if cand else "")')
+          IPAD=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=[n for n in names if n.startswith("iPad Pro") and ("13-inch" in n or "12.9" in n)]; print(cand[0] if cand else "")')
+          echo "iPhone device: $IPHONE"
+          echo "iPad device: $IPAD"
+          test -n "$IPHONE" -a -n "$IPAD" || { echo "::error::Missing simulator device"; exit 1; }
+          echo "IPHONE=$IPHONE" >> "$GITHUB_ENV"
+          echo "IPAD=$IPAD" >> "$GITHUB_ENV"
+          # Boot both while the project builds; first boot is the slow part.
+          nohup xcrun simctl boot "$IPHONE" >/dev/null 2>&1 &
+          nohup xcrun simctl boot "$IPAD" >/dev/null 2>&1 &
+          echo "booting in background"
 
       - name: Select newest usable Xcode
         run: |
@@ -67,11 +78,17 @@ jobs:
           test -d "$APP" || { echo "::error::App not built"; exit 1; }
           mkdir -p shots/iphone shots/ipad
 
+          # wait for both boots (bounded)
+          for i in $(seq 1 60); do
+            booted=$(xcrun simctl list devices booted | grep -c "Booted" || true)
+            [ "$booted" -ge 2 ] && break
+            sleep 5
+          done
+          xcrun simctl list devices booted | head -10
+
           shoot() {
             device="$1"; out="$2"
             echo "--- $device"
-            xcrun simctl boot "$device" 2>/dev/null || true
-            xcrun simctl bootstatus "$device" -b >/dev/null 2>&1 || true
             xcrun simctl install "$device" "$APP"
             xcrun simctl status_bar "$device" override \
               --time "9:41" --batteryState charged --batteryLevel 100 \
@@ -87,16 +104,7 @@ jobs:
               xcrun simctl io "$device" screenshot "$out/$name.png"
             done
             xcrun simctl status_bar "$device" clear 2>/dev/null || true
-            xcrun simctl shutdown "$device" 2>/dev/null || true
           }
-
-          xcrun simctl list devices available | head -40
-          IPHONE=$(xcrun simctl list devices available -j | python3 -c 'import json,re,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=sorted([n for n in names if re.match(r"iPhone 1[5-9].*Pro Max$", n)], key=lambda s:int(re.search(r"iPhone (\d+)", s).group(1)), reverse=True); print(cand[0] if cand else "")')
-          IPAD=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for rt in d.values() for x in rt if x.get("isAvailable",True)]; cand=[n for n in names if n.startswith("iPad Pro") and ("13-inch" in n or "12.9" in n)]; print(cand[0] if cand else "")')
-          echo "iPhone device: $IPHONE"
-          echo "iPad device: $IPAD"
-          test -n "$IPHONE" || { echo "::error::No iPhone simulator"; exit 1; }
-          test -n "$IPAD" || { echo "::error::No iPad simulator"; exit 1; }
 
           shoot "$IPHONE" shots/iphone
           shoot "$IPAD" shots/ipad
