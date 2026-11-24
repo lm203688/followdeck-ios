@@ -60,6 +60,30 @@ jobs:
           fi
           echo "No obvious secret patterns in source."
 
+      - name: App icon must be opaque 1024 (ITMS-90717)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import struct, sys
+          path = "FollowDeck/Sources/FollowDeck/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+          data = open(path, "rb").read()
+          if data[:8] != b"\x89PNG\r\n\x1a\n":
+              sys.exit("::error::AppIcon is not a PNG")
+          w, h, depth, ctype = struct.unpack(">IIBB", data[16:26])
+          # colour types with an alpha channel / palette transparency are rejected by ASC
+          bad = []
+          if ctype in (4, 6):
+              bad.append(f"alpha colour type {ctype}")
+          if b"tRNS" in data:
+              bad.append("tRNS transparency chunk")
+          if (w, h) != (1024, 1024):
+              bad.append(f"size {w}x{h} != 1024x1024")
+          if bad:
+              sys.exit("::error::Invalid large app icon (ITMS-90717): " + ", ".join(bad))
+          print(f"AppIcon OK: {w}x{h}, colour type {ctype} (no alpha)")
+          PY
+
       - name: Validate YAML
         shell: bash
         run: |
@@ -76,7 +100,9 @@ jobs:
 
   macos-build:
     name: macOS build (${{ github.event.inputs.action || 'compile' }})
-    runs-on: macos-15
+    # Xcode 27 toolchain: App Store Connect rejects iOS 26 SDK builds from April 2027
+    # (ITMS-90725), so shipping builds must use the iOS 27 SDK.
+    runs-on: xcode-27
     timeout-minutes: 90
     # dry_run / release require signing secrets; compile runs on every push.
     if: github.event_name != 'pull_request' || github.event.inputs.action == ''
@@ -98,12 +124,33 @@ jobs:
           echo "Selected: $chosen"
           sudo xcode-select -s "$chosen/Contents/Developer"
           xcodebuild -version
+          SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "iOS SDK: $SDK"
+          case "$SDK" in
+            27.*|28.*|29.*) ;;
+            *) echo "::error::iOS SDK $SDK is below 27.0 — App Store Connect rejects this from April 2027 (ITMS-90725)."; exit 1 ;;
+          esac
 
       - name: Install XcodeGen
         run: |
           set -euo pipefail
-          brew install xcodegen
-          xcodegen --version
+          if command -v xcodegen >/dev/null 2>&1; then
+            xcodegen --version; exit 0
+          fi
+          if command -v brew >/dev/null 2>&1; then
+            brew install xcodegen && xcodegen --version && exit 0
+          fi
+          # Self-hosted runner without Homebrew: use the portable release binary.
+          mkdir -p "$RUNNER_TEMP/xcodegen" "$HOME/.local/bin"
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+            https://github.com/yonaskolb/XcodeGen/releases/latest/download/xcodegen.zip
+          unzip -q -o "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          bin=$(find "$RUNNER_TEMP/xcodegen" -type f -name xcodegen -perm -u+x | head -1)
+          test -n "$bin" || { echo "::error::xcodegen binary not found in release archive"; exit 1; }
+          cp "$bin" "$HOME/.local/bin/xcodegen"
+          chmod +x "$HOME/.local/bin/xcodegen"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/xcodegen" --version
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -261,6 +308,42 @@ jobs:
           # The upload action does not expand globs: point it at the concrete exported IPA.
           ls -la "$RUNNER_TEMP/ipa"
           test -f "$RUNNER_TEMP/ipa/FollowDeck.ipa" || { echo "::error::FollowDeck.ipa not exported to $RUNNER_TEMP/ipa"; exit 1; }
+
+      - name: Verify exported binary (SDK + build number + icon)
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/unpacked/Payload/FollowDeck.app"
+          rm -rf "$RUNNER_TEMP/unpacked"; mkdir -p "$RUNNER_TEMP/unpacked"
+          unzip -q "$RUNNER_TEMP/ipa/FollowDeck.ipa" -d "$RUNNER_TEMP/unpacked"
+          test -d "$APP" || { echo "::error::No Payload/FollowDeck.app in IPA"; exit 1; }
+
+          VERSION=$(plutil -extract CFBundleShortVersionString raw "$APP/Info.plist")
+          BUILD=$(plutil -extract CFBundleVersion raw "$APP/Info.plist")
+          SDK_NAME=$(plutil -extract DTSDKName raw "$APP/Info.plist" 2>/dev/null || echo unknown)
+          echo "IPA: version $VERSION build $BUILD, $SDK_NAME"
+          test "$BUILD" = "2" || { echo "::error::Expected build 2, got $BUILD"; exit 1; }
+          case "$SDK_NAME" in
+            iphoneos27*|iphoneos28*|iphoneos29*) ;;
+            *) echo "::error::IPA was linked against $SDK_NAME (ITMS-90725 needs ios27+)"; exit 1 ;;
+          esac
+
+          # Large icon inside the bundle must be alpha-free (asset catalog output).
+          python3 - "$APP" <<'PY'
+          import glob, struct, sys, os
+          app = sys.argv[1]
+          pngs = [p for p in glob.glob(os.path.join(app, "AppIcon*.png"))] or \
+                 [p for p in glob.glob(os.path.join(app, "*.png")) if "Icon" in os.path.basename(p)]
+          print("icon candidates:", [os.path.basename(p) for p in pngs])
+          for p in pngs:
+              data = open(p, "rb").read()
+              if data[:8] != b"\x89PNG\r\n\x1a\n":
+                  continue
+              ct = struct.unpack(">IIBB", data[16:26])[3]
+              if ct in (4, 6) or b"tRNS" in data:
+                  sys.exit(f"::error::{os.path.basename(p)} still carries alpha (ITMS-90717)")
+          print("Bundle icons: no alpha channel")
+          PY
 
       - name: Upload to TestFlight
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
