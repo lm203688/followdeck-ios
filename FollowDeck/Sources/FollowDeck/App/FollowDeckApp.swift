@@ -63,9 +63,22 @@ struct RootView: View {
         return .today
     }
 
+    /// Screenshot tooling can preselect a plan on the paywall (`-plan=monthly`
+    /// or `-plan=yearly`) so one review frame can capture each product separately.
+    private static var launchPlanID: String? {
+        for arg in ProcessInfo.processInfo.arguments where arg.hasPrefix("-plan=") {
+            switch arg.dropFirst("-plan=".count) {
+            case "monthly": return ProductIDs.monthly
+            case "yearly": return ProductIDs.yearly
+            default: return nil
+            }
+        }
+        return nil
+    }
+
     var body: some View {
         if selectedTab == .paywall {
-            ProPaywallView()
+            ProPaywallView(initialPlanID: RootView.launchPlanID)
         } else {
         TabView(selection: $selectedTab) {
             TodayBoardView()
