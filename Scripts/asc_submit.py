@@ -13,6 +13,7 @@ Preconditions (completed in the ASC web first; see docs/signing-runbook.md secti
 """
 
 import base64
+import hashlib
 import json
 import os
 import struct
@@ -388,6 +389,14 @@ def _png_size(path: str):
     return w, h, len(data)
 
 
+def _sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()[:16]
+
+
 def _existing_review_screenshot(token: str, sub_id: str):
     res = api("GET", f"/v1/subscriptions/{sub_id}/appStoreReviewScreenshot", token)
     return res.get("data")
@@ -464,9 +473,16 @@ def run_attach_screenshots(token: str) -> None:
         {"sub": "6838602473", "frame": "06-paywall-monthly.png", "label": "monthly"},
     ]
     _download_artifact(iphone_artifact, work)
+    frames = {}
     for item in plan:
         png = _find_frame(work, item["frame"])
+        digest = _sha256(png)
+        frames[item["label"]] = digest
+        print(f"[{item['label']}] {item['frame']} sha256={digest}")
         attach_review_screenshot(token, item["sub"], png, item["label"])
+    if frames.get("yearly") == frames.get("monthly"):
+        raise SystemExit("ERROR: yearly and monthly paywall frames are identical; "
+                         "check the -plan= preselection before resubmitting.")
     print("All subscription review screenshots attached.")
 
 
