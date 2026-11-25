@@ -178,6 +178,26 @@ def open_submission(token: str) -> str:
     return sid
 
 
+def _inspect_version_assets(token: str, version_id: str) -> None:
+    """Read-only snapshot of an in-flight version's screenshots and localizations."""
+    shots = api("GET", f"/v1/appStoreVersions/{version_id}/appScreenshots?limit=50", token)
+    shot_count = len(shots.get("data", []))
+    print(f"    appScreenshots={shot_count}")
+
+    locs = api(
+        "GET",
+        f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations?limit=20",
+        token,
+    )
+    for loc in locs.get("data", []):
+        la = loc["attributes"]
+        desc = (la.get("description") or "").strip()
+        kw = (la.get("keywords") or "").strip()
+        whats = (la.get("whatsNew") or "").strip()
+        print(f"    locale={la.get('locale')}  desc={len(desc)}  "
+              f"keywords={len(kw)}  whatsNew={len(whats)}")
+
+
 def run_inspect(token: str) -> None:
     """Read-only ASC state dump: versions, builds, subscription groups/products.
 
@@ -197,6 +217,8 @@ def run_inspect(token: str) -> None:
         build_id = rel_build.get("id", "(none)")
         print(f"  {a.get('versionString')}  state={a.get('appStoreState')}  "
               f"releaseType={a.get('releaseType')}  build={build_id}  id={v['id']}")
+        if a.get("appStoreState") in IN_FLIGHT_STATES:
+            _inspect_version_assets(token, v["id"])
 
     builds = api(
         "GET",
