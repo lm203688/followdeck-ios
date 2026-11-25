@@ -16,6 +16,7 @@ on:
           - compile   # build + unit tests on the simulator, no signing
           - dry_run   # build, sign, upload to TestFlight; do not submit (needs signing secrets)
           - inspect   # read-only ASC state dump via the official REST API (needs ASC API key)
+          - prepare   # create/reuse the draft version and associate the VALID build; do not submit
           - release   # sign, upload and submit for review (needs signing secrets)
 
 env:
@@ -117,6 +118,26 @@ jobs:
           ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
           ASC_APP_ID: "6838357401"
         run: python3 Scripts/asc_submit.py inspect
+
+  asc-prepare:
+    name: ASC prepare draft version
+    runs-on: ubuntu-latest
+    # Creates/reuses the in-flight draft version and associates the target VALID build.
+    # Does not fill localization/screenshots and does NOT submit for review.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'prepare'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare draft version and associate build
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_APP_ID: "6838357401"
+          TARGET_VERSION: "1.1"
+          TARGET_BUILD: "4"
+        run: python3 Scripts/asc_submit.py prepare
 
   macos-build:
     name: macOS build (${{ github.event.inputs.action || 'compile' }})
