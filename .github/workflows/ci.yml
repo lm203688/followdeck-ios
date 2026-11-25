@@ -38,6 +38,7 @@ jobs:
             "FollowDeck/Sources/FollowDeck/Models/Models.swift" \
             "FollowDeck/Sources/FollowDeck/Services/Store.swift" \
             "FollowDeck/Sources/FollowDeck/App/FollowDeckApp.swift" \
+            "Scripts/asc_submit.py" \
             "README.md"; do
             test -f "$p" || { echo "Missing required path: $p"; exit 1; }
           done
@@ -361,5 +362,15 @@ jobs:
           # primary locale) and internal groups are configured in ASC.
           wait-for-processing: 'false'
 
-      # release: after the dry_run build is confirmed installed in TestFlight, add the ASC
-      # submit-for-review step here. dry_run stops after this upload.
+      # dry_run stops after this TestFlight upload. The release action additionally submits
+      # the in-flight App Store version to review through the ASC REST API. This step never
+      # runs on push / compile / dry_run; it stays behind the manual `action=release` dispatch.
+      # Preconditions are assembled in the ASC web first (see docs/signing-runbook.md §8.1).
+      - name: Submit for review (release only)
+        if: github.event.inputs.action == 'release'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_APP_ID: "6838357401"
+        run: python3 Scripts/asc_submit.py
