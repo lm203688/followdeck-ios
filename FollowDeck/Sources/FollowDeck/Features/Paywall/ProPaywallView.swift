@@ -247,6 +247,10 @@ struct ProPaywallView: View {
 
     /// Default to the recommended best-value plan; fall back to the first plan.
     private func selectDefaultPlan() {
+        // Products load asynchronously. Before the catalog arrives, keep any explicit
+        // preselection (used by screenshot launches) instead of falling back to the
+        // recommended plan and losing it once products resolve.
+        guard !presentation.plans.isEmpty else { return }
         guard selectedPlanID == nil || !presentation.plans.contains(where: { $0.id == selectedPlanID }) else { return }
         selectedPlanID = presentation.recommended?.id ?? presentation.plans.first?.id
     }
