@@ -36,6 +36,14 @@ IN_FLIGHT_STATES = {
     "REJECTED",
     "INVALID_BINARY",
 }
+# Subscription version states that may be added to a review submission.
+SUB_VERSION_STATES = {
+    "PREPARE_FOR_SUBMISSION",
+    "READY_FOR_REVIEW",
+    "DEVELOPER_REJECTED",
+    "REJECTED",
+    "INVALID_BINARY",
+}
 # A submission in one of these states can be reused instead of creating a duplicate.
 OPEN_SUBMISSION_STATES = {"READY_FOR_REVIEW", "WAITING_FOR_REVIEW"}
 
@@ -211,6 +219,34 @@ def run_inspect(token: str) -> None:
                   f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  id={s['id']}")
 
 
+def collect_submission_subscription_versions(token: str) -> list:
+    """Return the in-flight subscription versions that should accompany this binary.
+
+    Walks subscription groups → subscriptions → subscription versions and keeps the
+    submittable draft/rejected versions. Read-only; no submission items are created here.
+    """
+    out = []
+    groups = api("GET", f"/v1/apps/{APP_ID}/subscriptionGroups?limit=20", token)
+    for g in groups.get("data", []):
+        subs = api(
+            "GET", f"/v1/subscriptionGroups/{g['id']}/subscriptions?limit=20", token
+        )
+        for s in subs.get("data", []):
+            product_id = s["attributes"].get("productId")
+            vers = api(
+                "GET", f"/v1/subscriptions/{s['id']}/versions?limit=20", token
+            )
+            for v in vers.get("data", []):
+                state = v["attributes"].get("state")
+                if state in SUB_VERSION_STATES:
+                    out.append({
+                        "id": v["id"],
+                        "productId": product_id,
+                        "state": state,
+                    })
+    return out
+
+
 def find_version(token: str, version_string: str):
     res = api(
         "GET",
@@ -291,19 +327,27 @@ def main():
 
     submission_id = open_submission(token)
 
-    api("POST", "/v1/reviewSubmissionItems", token, {
-        "data": {
-            "type": "reviewSubmissionItems",
-            "relationships": {
-                "reviewSubmission": {
-                    "data": {"type": "reviewSubmissions", "id": submission_id}
+    def attach_item(rel_name: str, rel_type: str, rel_id: str) -> None:
+        api("POST", "/v1/reviewSubmissionItems", token, {
+            "data": {
+                "type": "reviewSubmissionItems",
+                "relationships": {
+                    "reviewSubmission": {
+                        "data": {"type": "reviewSubmissions", "id": submission_id}
+                    },
+                    rel_name: {"data": {"type": rel_type, "id": rel_id}},
                 },
-                "appStoreVersion": {
-                    "data": {"type": "appStoreVersions", "id": version_id}
-                },
-            },
-        }
-    })
+            }
+        })
+
+    # Pro subscription versions ride along with this binary; submit the version,
+    # not the parent subscription. Skip cleanly if none are in a submittable state.
+    for sv in collect_submission_subscription_versions(token):
+        attach_item("subscriptionVersion", "subscriptionVersions", sv["id"])
+        print(f"Attached subscription version {sv['id']} "
+              f"({sv['productId']}, {sv['state']}) to submission {submission_id}")
+
+    attach_item("appStoreVersion", "appStoreVersions", version_id)
     print(f"Attached version {version_id} to submission {submission_id}")
 
     api("PATCH", f"/v1/reviewSubmissions/{submission_id}", token, {
