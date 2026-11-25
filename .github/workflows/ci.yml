@@ -18,6 +18,7 @@ on:
           - inspect   # read-only ASC state dump via the official REST API (needs ASC API key)
           - prepare   # create/reuse the draft version and associate the VALID build; do not submit
           - prepare-group  # create the subscription group draft version and its localized display name; do not submit
+          - prepare-availability  # set subscription plan availability (sales territories); do not submit
           - attach-screenshots  # fetch CI screenshot artifacts internally and attach Pro paywall review screenshots
           - release   # sign, upload and submit for review (needs signing secrets)
 
@@ -165,6 +166,27 @@ jobs:
           GROUP_LOCALE: "en-US"
           GROUP_DISPLAY_NAME: "FollowDeck Pro"
         run: python3 Scripts/asc_submit.py prepare-group
+
+  asc-prepare-availability:
+    name: ASC prepare subscription availability
+    runs-on: ubuntu-latest
+    # Sets the plan availability / sales territories for each Pro subscription.
+    # Without this the subscription rejects review with
+    # IAP_SUBMISSION_NOT_ALLOWED_AVAILABILITY_NEVER_SET. Does not submit for review.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'prepare-availability'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set subscription plan availability
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_APP_ID: "6838357401"
+          AVAILABILITY_PLAN_TYPE: "UPFRONT"
+          EXCLUDED_TERRITORIES: "CHN"
+        run: python3 Scripts/asc_submit.py prepare-availability
 
   asc-attach-screenshots:
     name: ASC attach Pro review screenshots
