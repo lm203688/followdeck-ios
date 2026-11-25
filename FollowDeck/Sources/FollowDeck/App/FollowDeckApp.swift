@@ -18,7 +18,16 @@ struct FollowDeckApp: App {
         let store = PersistenceController.shared.makeStore()
         SampleData.seedIfEmpty(store: store)
         _bridge = StateObject(wrappedValue: StoreBridge(store: store))
-        _subscriptions = StateObject(wrappedValue: SubscriptionManager())
+        #if DEBUG
+        // Screenshot/preview runs open the paywall directly and render it from the
+        // offline preview catalog; release builds always use the StoreKit service.
+        let usePreviewStore = ProcessInfo.processInfo.arguments.contains("-uiTab=paywall")
+        let service: SubscriptionServiceProtocol = usePreviewStore
+            ? PreviewSubscriptionService() : StoreKitSubscriptionService()
+        #else
+        let service: SubscriptionServiceProtocol = StoreKitSubscriptionService()
+        #endif
+        _subscriptions = StateObject(wrappedValue: SubscriptionManager(service: service))
     }
 
     var body: some Scene {
@@ -34,7 +43,7 @@ struct FollowDeckApp: App {
 /// Root tab navigation: Today, Pipeline, Clients, Follow-ups.
 struct RootView: View {
     private enum Tab: Int, Hashable {
-        case today, pipeline, clients, followUps
+        case today, pipeline, clients, followUps, paywall
     }
 
     @State private var selectedTab: Tab = RootView.launchTab
@@ -47,6 +56,7 @@ struct RootView: View {
             case "pipeline": return .pipeline
             case "clients": return .clients
             case "followups": return .followUps
+            case "paywall": return .paywall
             default: return .today
             }
         }
@@ -54,6 +64,9 @@ struct RootView: View {
     }
 
     var body: some View {
+        if selectedTab == .paywall {
+            ProPaywallView()
+        } else {
         TabView(selection: $selectedTab) {
             TodayBoardView()
                 .tabItem { Label("Today", systemImage: "checkmark.circle") }
@@ -81,6 +94,7 @@ struct RootView: View {
             case .clients: selectedTab = .clients
             case .followUps: selectedTab = .followUps
             }
+        }
         }
     }
 }
