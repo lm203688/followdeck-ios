@@ -32,9 +32,8 @@ struct AppInfo: Equatable {
 /// the system mail app; FollowDeck never sends or uploads this message itself.
 enum FeedbackMail {
 
-    /// Placeholder support address. Replace with the developer-owned address
-    /// once the support channel is provisioned; do not commit a real secret here.
-    static let placeholderRecipient = "support@example.com"
+    /// Developer-owned support inbox for the local feedback mailto entry.
+    static let recipient = "463102527@qq.com"
 
     static func composeURL(to: String, subject: String, body: String) -> URL? {
         var components = URLComponents()
