@@ -17,6 +17,7 @@ on:
           - dry_run   # build, sign, upload to TestFlight; do not submit (needs signing secrets)
           - inspect   # read-only ASC state dump via the official REST API (needs ASC API key)
           - prepare   # create/reuse the draft version and associate the VALID build; do not submit
+          - prepare-group  # create the subscription group draft version and its localized display name; do not submit
           - attach-screenshots  # fetch CI screenshot artifacts internally and attach Pro paywall review screenshots
           - release   # sign, upload and submit for review (needs signing secrets)
 
@@ -143,6 +144,27 @@ jobs:
           TARGET_VERSION: "1.1"
           TARGET_BUILD: "4"
         run: python3 Scripts/asc_submit.py prepare
+
+  asc-prepare-group:
+    name: ASC prepare subscription group version
+    runs-on: ubuntu-latest
+    # Creates/reuses the subscription group draft version and attaches the en-US
+    # localized group display name. Fixes the group stuck at MISSING_METADATA
+    # under the 4.4.1 version-based metadata workflow. Does not submit for review.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'prepare-group'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare group version and localization
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_APP_ID: "6838357401"
+          GROUP_LOCALE: "en-US"
+          GROUP_DISPLAY_NAME: "FollowDeck Pro"
+        run: python3 Scripts/asc_submit.py prepare-group
 
   asc-attach-screenshots:
     name: ASC attach Pro review screenshots
