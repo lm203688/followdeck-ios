@@ -256,14 +256,16 @@ def run_inspect(token: str) -> None:
         ga = g["attributes"]
         gid = g["id"]
         print(f"  group {gid}  name={ga.get('referenceName')}")
-        gvers = api("GET", f"/v1/subscriptionGroups/{gid}/versions?limit=20", token)
-        for gv in gvers.get("data", []):
+        gvers, gv_err = _safe_get(token, f"/v1/subscriptionGroups/{gid}/versions?limit=20")
+        gv_data = gvers.get("data", []) if gvers else []
+        print(f"    groupVersions={len(gv_data)}" + (f" ERR({gv_err})" if gv_err else ""))
+        for gv in gv_data:
             gva = gv["attributes"]
-            gloc, gv_err = _safe_get(token, f"/v1/subscriptionGroupVersions/{gv['id']}/localizations?limit=20")
+            gloc, gloc_err = _safe_get(token, f"/v1/subscriptionGroupVersions/{gv['id']}/localizations?limit=20")
             gloc_names = [
                 f"{l['attributes'].get('locale')}:{l['attributes'].get('name')}"
                 for l in gloc.get("data", [])
-            ] if gloc else f"ERR({gv_err})"
+            ] if gloc else f"ERR({gloc_err})"
             print(f"    groupVersion {gv['id'][:8]} state={gva.get('state')} "
                   f"localizations={len(gloc.get('data', [])) if gloc else 'ERR'} [{'; '.join(gloc_names)}]")
         subs = api("GET", f"/v1/subscriptionGroups/{gid}/subscriptions?limit=20", token)
