@@ -180,22 +180,32 @@ def open_submission(token: str) -> str:
 
 def _inspect_version_assets(token: str, version_id: str) -> None:
     """Read-only snapshot of an in-flight version's screenshots and localizations."""
-    shots = api("GET", f"/v1/appStoreVersions/{version_id}/appScreenshots?limit=50", token)
-    shot_count = len(shots.get("data", []))
-    print(f"    appScreenshots={shot_count}")
-
     locs = api(
         "GET",
-        f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations?limit=20",
+        f"/v1/appStoreVersions/{version_id}/appStoreVersionLocalizations"
+        "?limit=20&include=appScreenshotSets",
         token,
     )
+    total_shots = 0
     for loc in locs.get("data", []):
         la = loc["attributes"]
         desc = (la.get("description") or "").strip()
         kw = (la.get("keywords") or "").strip()
         whats = (la.get("whatsNew") or "").strip()
+        sets = (loc.get("relationships", {})
+                .get("appScreenshotSets", {}).get("data", []))
+        shot_count = 0
+        for s in sets:
+            set_res = api("GET", f"/v1/appScreenshotSets/{s['id']}?include=appScreenshots", token)
+            shot_count += len(
+                set_res["data"].get("relationships", {})
+                .get("appScreenshots", {}).get("data", [])
+            )
+        total_shots += shot_count
         print(f"    locale={la.get('locale')}  desc={len(desc)}  "
-              f"keywords={len(kw)}  whatsNew={len(whats)}")
+              f"keywords={len(kw)}  whatsNew={len(whats)}  "
+              f"screenshotSets={len(sets)}  screenshots={shot_count}")
+    print(f"    total appScreenshots={total_shots}")
 
 
 def run_inspect(token: str) -> None:
