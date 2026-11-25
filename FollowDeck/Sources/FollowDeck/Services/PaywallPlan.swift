@@ -30,6 +30,12 @@ struct PaywallPlan: Identifiable, Equatable {
         guard let days = trialFreeDays else { return nil }
         return "\(days)-day free trial"
     }
+
+    /// Primary button copy: a trial-bearing plan leads with the free trial; a plan
+    /// without a trial shows a direct subscribe call to action.
+    var ctaTitle: String {
+        trialCopy != nil ? "Start free trial" : "Subscribe"
+    }
 }
 
 enum PaywallCatalog {
