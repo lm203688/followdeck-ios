@@ -43,7 +43,7 @@ final class PaywallPresentationTests: XCTestCase {
         let presentation = PaywallAssembly.presentation(products: products)
 
         XCTAssertEqual(presentation.features, PaywallCatalog.proFeatures)
-        XCTAssertEqual(presentation.features.count, 4)
+        XCTAssertEqual(presentation.features.count, PaywallCatalog.proFeatures.count)
     }
 
     func testEmptyProductsKeepFeaturesButNoPlans() {
