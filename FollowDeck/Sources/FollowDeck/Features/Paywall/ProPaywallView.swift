@@ -73,7 +73,7 @@ struct ProPaywallView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Unlock FollowDeck Pro")
                 .font(.title2.bold())
-            Text("Remove the client cap and get unlimited access to every FollowDeck feature.")
+            Text("Remove the 20-client cap and keep an unlimited roster of clients.")
                 .foregroundColor(.secondary)
         }
     }
@@ -225,7 +225,7 @@ struct ProPaywallView: View {
                 .foregroundColor(.accentColor)
             Text("You're on FollowDeck Pro")
                 .font(.headline)
-            Text("Unlimited clients and all Pro features are active on this device.")
+            Text("An unlimited client roster is active on this device.")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
