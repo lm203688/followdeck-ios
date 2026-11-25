@@ -414,8 +414,12 @@ jobs:
           print("Bundle icons: no alpha channel")
           PY
 
+      # Only dry_run re-uploads to TestFlight. release reuses the VALID build already
+      # associated with the in-flight App Store version; re-uploading the same bundle
+      # version is rejected with 409 ("bundle version must be higher") and is redundant
+      # for a review submission. release goes straight to the REST submit step below.
       - name: Upload to TestFlight
-        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        if: github.event.inputs.action == 'dry_run'
         uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: ${{ runner.temp }}/ipa/FollowDeck.ipa
@@ -428,9 +432,10 @@ jobs:
           # primary locale) and internal groups are configured in ASC.
           wait-for-processing: 'false'
 
-      # dry_run stops after this TestFlight upload. The release action additionally submits
-      # the in-flight App Store version to review through the ASC REST API. This step never
-      # runs on push / compile / dry_run; it stays behind the manual `action=release` dispatch.
+      # dry_run stops after this TestFlight upload. release skips the re-upload (build 4 is
+      # already VALID and associated with the in-flight version) and submits the App Store
+      # version to review through the ASC REST API. This step never runs on push / compile /
+      # dry_run; it stays behind the manual `action=release` dispatch.
       # Preconditions are assembled in the ASC web first (see docs/signing-runbook.md §8.1).
       - name: Submit for review (release only)
         if: github.event.inputs.action == 'release'
