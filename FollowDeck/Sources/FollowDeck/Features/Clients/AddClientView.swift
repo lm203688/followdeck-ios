@@ -13,6 +13,8 @@ struct AddClientView: View {
     @EnvironmentObject private var subscriptions: SubscriptionManager
     @Environment(\.dismiss) private var dismiss
 
+    @State private var showingPaywall = false
+
     private let editingClient: Client?
     @State private var name: String
     @State private var email: String
@@ -71,6 +73,11 @@ struct AddClientView: View {
                         Text("You've reached the free limit of \(EntitlementPolicy.freeTierClientLimit) clients. Upgrade to Pro to add more.")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        Button {
+                            showingPaywall = true
+                        } label: {
+                            Label("Upgrade to Pro", systemImage: "star.fill")
+                        }
                     }
                 }
             }
@@ -83,6 +90,9 @@ struct AddClientView: View {
                     Button("Save") { save() }
                         .disabled(!canSave)
                 }
+            }
+            .sheet(isPresented: $showingPaywall) {
+                ProPaywallView()
             }
         }
     }
