@@ -256,6 +256,12 @@ def run_inspect(token: str) -> None:
         ga = g["attributes"]
         gid = g["id"]
         print(f"  group {gid}  name={ga.get('referenceName')}")
+        gv1loc, gv1_err = _safe_get(token, f"/v1/subscriptionGroups/{gid}/subscriptionGroupLocalizations?limit=20")
+        gv1_names = [
+            f"{l['attributes'].get('locale')}:{l['attributes'].get('name')}"
+            for l in gv1loc.get("data", [])
+        ] if gv1loc else f"ERR({gv1_err})"
+        print(f"    group v1 localizations={len(gv1loc.get('data', [])) if gv1loc else 'ERR'} [{'; '.join(gv1_names)}]")
         gvers, gv_err = _safe_get(token, f"/v1/subscriptionGroups/{gid}/versions?limit=20")
         gv_data = gvers.get("data", []) if gvers else []
         print(f"    groupVersions={len(gv_data)}" + (f" ERR({gv_err})" if gv_err else ""))
@@ -353,6 +359,99 @@ def _inspect_sub_version(token: str, ver_id: str, sub_id: str, product_id: str) 
           f"price={price_state}  image={img_state}  introOffer={offer_state}")
     print(f"        version attrs: {json.dumps(ver_attrs, ensure_ascii=False)}"
           if ver_attrs else f"        version attrs: ERR({ver_err})")
+
+
+GROUP_DISPLAY_NAME = os.environ.get("GROUP_DISPLAY_NAME", "FollowDeck Pro")
+GROUP_LOCALE = os.environ.get("GROUP_LOCALE", "en-US")
+
+
+def ensure_group_version(token: str, gid: str) -> str:
+    gvers, _ = _safe_get(token, f"/v1/subscriptionGroups/{gid}/versions?limit=20")
+    data = gvers.get("data", []) if gvers else []
+    if data:
+        for v in data:
+            if v["attributes"].get("state") == "PREPARE_FOR_SUBMISSION":
+                print(f"Reusing draft group version {v['id']}")
+                return v["id"]
+        v = data[0]
+        print(f"Reusing existing group version {v['id']} "
+              f"({v['attributes'].get('state')})")
+        return v["id"]
+    created = api("POST", "/v1/subscriptionGroupVersions", token, {
+        "data": {
+            "type": "subscriptionGroupVersions",
+            "relationships": {
+                "subscriptionGroup": {
+                    "data": {"type": "subscriptionGroups", "id": gid}
+                }
+            },
+        }
+    })
+    gv = created["data"]["id"]
+    print(f"Created subscription group version {gv}")
+    return gv
+
+
+def ensure_group_localization(token: str, gv_id: str, locale: str, name: str) -> str:
+    loc, _ = _safe_get(token, f"/v1/subscriptionGroupVersions/{gv_id}/localizations?limit=20")
+    existing = {l["attributes"].get("locale"): l
+                for l in (loc.get("data", []) if loc else [])}
+    if locale in existing:
+        lid = existing[locale]["id"]
+        api("PATCH", f"/v2/subscriptionGroupLocalizations/{lid}", token, {
+            "data": {
+                "type": "subscriptionGroupLocalizations",
+                "id": lid,
+                "attributes": {"locale": locale, "name": name},
+            }
+        })
+        print(f"Updated group localization {lid} {locale}={name}")
+        return lid
+    created = api("POST", "/v2/subscriptionGroupLocalizations", token, {
+        "data": {
+            "type": "subscriptionGroupLocalizations",
+            "attributes": {"locale": locale, "name": name},
+            "relationships": {
+                "version": {
+                    "data": {"type": "subscriptionGroupVersions", "id": gv_id}
+                }
+            },
+        }
+    })
+    lid = created["data"]["id"]
+    print(f"Created group localization {lid} {locale}={name}")
+    return lid
+
+
+def run_prepare_group(token: str) -> None:
+    """Create the subscription group draft version and its localized display name.
+
+    Idempotent: reuses an existing draft group version and an existing locale.
+    This is the missing piece that keeps every subscription in the group stuck at
+    MISSING_METADATA under the 4.4.1 version-based metadata workflow.
+    """
+    groups = api("GET", f"/v1/apps/{APP_ID}/subscriptionGroups?limit=20", token)
+    for g in groups.get("data", []):
+        gid = g["id"]
+        gv = ensure_group_version(token, gid)
+        ensure_group_localization(token, gv, GROUP_LOCALE, GROUP_DISPLAY_NAME)
+        chk, _ = _safe_get(token, f"/v1/subscriptionGroupVersions/{gv}/localizations?limit=20")
+        locs = ", ".join(
+            f"{l['attributes'].get('locale')}:{l['attributes'].get('name')}"
+            for l in chk.get("data", [])
+        ) if chk else "(readback ERR)"
+        print(f"  group {gid} version {gv} localizations=[{locs}]")
+
+
+def collect_submission_group_versions(token: str) -> list:
+    out = []
+    groups = api("GET", f"/v1/apps/{APP_ID}/subscriptionGroups?limit=20", token)
+    for g in groups.get("data", []):
+        gvers, _ = _safe_get(token, f"/v1/subscriptionGroups/{g['id']}/versions?limit=20")
+        for v in (gvers.get("data", []) if gvers else []):
+            if v["attributes"].get("state") in SUB_VERSION_STATES:
+                out.append({"id": v["id"], "state": v["attributes"].get("state")})
+    return out
 
 
 def collect_submission_subscription_versions(token: str) -> list:
@@ -630,6 +729,10 @@ def main():
         run_attach_screenshots(token)
         return
 
+    if command == "prepare-group":
+        run_prepare_group(token)
+        return
+
     version = pick_inflight_version(token)
     version_id = version["id"]
     attrs = version["attributes"]
@@ -657,6 +760,12 @@ def main():
         attach_item("subscriptionVersion", "subscriptionVersions", sv["id"])
         print(f"Attached subscription version {sv['id']} "
               f"({sv['productId']}, {sv['state']}) to submission {submission_id}")
+
+    # The group draft version carries the group-level localized display name.
+    for gv in collect_submission_group_versions(token):
+        attach_item("subscriptionGroupVersion", "subscriptionGroupVersions", gv["id"])
+        print(f"Attached subscription group version {gv['id']} "
+              f"({gv['state']}) to submission {submission_id}")
 
     attach_item("appStoreVersion", "appStoreVersions", version_id)
     print(f"Attached version {version_id} to submission {submission_id}")
