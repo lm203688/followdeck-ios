@@ -175,7 +175,7 @@ def run_inspect(token: str) -> None:
     """
     versions = api(
         "GET",
-        f"/v1/apps/{APP_ID}/appStoreVersions?filter[platform]=IOS&limit=20",
+        f"/v1/apps/{APP_ID}/appStoreVersions?filter[platform]=IOS&limit=20&include=build",
         token,
     )
     print("== App Store versions ==")
