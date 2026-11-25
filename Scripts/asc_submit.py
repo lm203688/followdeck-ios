@@ -178,6 +178,15 @@ def open_submission(token: str) -> str:
     return sid
 
 
+def _safe_get(token: str, path: str):
+    try:
+        return api("GET", path, token), None
+    except urllib.error.HTTPError as e:
+        return None, e.code
+    except SystemExit:
+        return None, "exit"
+
+
 def _inspect_version_assets(token: str, version_id: str) -> None:
     """Read-only snapshot of an in-flight version's screenshots and localizations."""
     locs = api(
@@ -247,6 +256,16 @@ def run_inspect(token: str) -> None:
         ga = g["attributes"]
         gid = g["id"]
         print(f"  group {gid}  name={ga.get('referenceName')}")
+        gvers = api("GET", f"/v1/subscriptionGroups/{gid}/versions?limit=20", token)
+        for gv in gvers.get("data", []):
+            gva = gv["attributes"]
+            gloc, gv_err = _safe_get(token, f"/v1/subscriptionGroupVersions/{gv['id']}/localizations?limit=20")
+            gloc_names = [
+                f"{l['attributes'].get('locale')}:{l['attributes'].get('name')}"
+                for l in gloc.get("data", [])
+            ] if gloc else f"ERR({gv_err})"
+            print(f"    groupVersion {gv['id'][:8]} state={gva.get('state')} "
+                  f"localizations={len(gloc.get('data', [])) if gloc else 'ERR'} [{'; '.join(gloc_names)}]")
         subs = api("GET", f"/v1/subscriptionGroups/{gid}/subscriptions?limit=20", token)
         for s in subs.get("data", []):
             det = api("GET", f"/v1/subscriptions/{s['id']}", token)
