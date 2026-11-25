@@ -408,10 +408,11 @@ def attach_review_screenshot(token: str, sub_id: str, png_path: str, label: str)
 
     existing = _existing_review_screenshot(token, sub_id)
     if existing:
+        old_id = existing["id"]
         state = (existing.get("attributes") or {}) \
             .get("assetDeliveryState", {}).get("state")
-        print(f"[{label}] review screenshot already present ({state}); skipping.")
-        return
+        print(f"[{label}] replacing existing screenshot {old_id} ({state}).")
+        api("DELETE", f"/v1/subscriptionAppStoreReviewScreenshots/{old_id}", token)
 
     with open(png_path, "rb") as f:
         payload = f.read()
@@ -466,7 +467,7 @@ def attach_review_screenshot(token: str, sub_id: str, png_path: str, label: str)
 def run_attach_screenshots(token: str) -> None:
     work = os.path.join(WORK, "attach-shots")
     os.makedirs(work, exist_ok=True)
-    iphone_artifact = os.environ.get("ARTIFACT_IPHONE", "15009108376")
+    iphone_artifact = os.environ.get("ARTIFACT_IPHONE", "15027283002")
 
     plan = [
         {"sub": "6838602869", "frame": "05-paywall-yearly.png", "label": "yearly"},
