@@ -15,6 +15,7 @@ on:
         options:
           - compile   # build + unit tests on the simulator, no signing
           - dry_run   # build, sign, upload to TestFlight; do not submit (needs signing secrets)
+          - inspect   # read-only ASC state dump via the official REST API (needs ASC API key)
           - release   # sign, upload and submit for review (needs signing secrets)
 
 env:
@@ -98,6 +99,24 @@ jobs:
               except Exception as e:
                   print("invalid:", f, e); ok = False
           sys.exit(0 if ok else 1)
+
+  asc-inspect:
+    name: ASC inspect (read-only)
+    runs-on: ubuntu-latest
+    # Read-only state dump through the official ASC REST API. Does not build, sign,
+    # upload or submit anything; only verifies the stored API key and reads state.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'inspect'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read-only ASC state dump
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_APP_ID: "6838357401"
+        run: python3 Scripts/asc_submit.py inspect
 
   macos-build:
     name: macOS build (${{ github.event.inputs.action || 'compile' }})
