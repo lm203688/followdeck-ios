@@ -161,7 +161,7 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
           ASC_APP_ID: "6838357401"
-          ARTIFACT_IPHONE: "15009108376"
+          ARTIFACT_IPHONE: "15027283002"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 Scripts/asc_submit.py attach-screenshots
 
