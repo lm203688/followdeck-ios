@@ -146,13 +146,14 @@ final class SubscriptionManagerTests: XCTestCase {
         XCTAssertEqual(presentation.features, PaywallCatalog.proFeatures)
     }
 
-    func testPreviewServiceServesBothCatalogProductsAndStaysFree() async {
+    func testPreviewServiceServesBothCatalogProductsAndStaysFree() async throws {
         let preview = PreviewSubscriptionService()
         let products = try await preview.loadProducts()
 
         XCTAssertEqual(products.map(\.id), [ProductIDs.monthly, ProductIDs.yearly])
         XCTAssertEqual(products.first?.priceDisplay, "$4.99")
         XCTAssertEqual(products.last?.priceDisplay, "$29.99")
-        XCTAssertTrue(await preview.activeProductIDs().isEmpty)
+        let active = await preview.activeProductIDs()
+        XCTAssertTrue(active.isEmpty)
     }
 }
