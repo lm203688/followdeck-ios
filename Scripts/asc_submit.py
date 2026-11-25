@@ -363,6 +363,85 @@ def _inspect_sub_version(token: str, ver_id: str, sub_id: str, product_id: str) 
 
 GROUP_DISPLAY_NAME = os.environ.get("GROUP_DISPLAY_NAME", "FollowDeck Pro")
 GROUP_LOCALE = os.environ.get("GROUP_LOCALE", "en-US")
+# Mainland China is excluded from the distribution territories; HK/MO/TW are kept.
+EXCLUDED_TERRITORIES = set(os.environ.get(
+    "EXCLUDED_TERRITORIES", "CHN").split(","))
+AVAILABILITY_PLAN_TYPE = os.environ.get("AVAILABILITY_PLAN_TYPE", "UPFRONT")
+
+
+def _price_territories(token: str, sub_id: str) -> list:
+    """Territories that already carry a price point, minus excluded markets."""
+    res = api("GET", f"/v1/subscriptions/{sub_id}/prices?limit=200&include=territory", token)
+    ids = []
+    for p in res.get("data", []):
+        t = (p.get("relationships", {})
+             .get("territory", {}).get("data") or {})
+        tid = t.get("id")
+        if tid and tid not in EXCLUDED_TERRITORIES and tid not in ids:
+            ids.append(tid)
+    return ids
+
+
+def ensure_availability(token: str, sub_id: str) -> str:
+    territories = _price_territories(token, sub_id)
+    print(f"    availability territories={len(territories)} "
+          f"(excluded {sorted(EXCLUDED_TERRITORIES)})")
+    existing = api(
+        "GET",
+        f"/v1/subscriptions/{sub_id}/planAvailabilities?include=availableTerritories",
+        token,
+    )
+    data = existing.get("data", [])
+    match = next((v for v in data
+                  if (v.get("attributes") or {}).get("planType") == AVAILABILITY_PLAN_TYPE),
+                 data[0] if data else None)
+    if match:
+        av_id = match["id"]
+        api(
+            "PATCH",
+            f"/v1/subscriptionPlanAvailabilities/{av_id}/relationships/availableTerritories",
+            token,
+            {"data": [{"type": "territories", "id": t} for t in territories]},
+        )
+        print(f"    updated availability {av_id}: {len(territories)} territories")
+        return av_id
+    created = api("POST", "/v1/subscriptionPlanAvailabilities", token, {
+        "data": {
+            "type": "subscriptionPlanAvailabilities",
+            "attributes": {
+                "planType": AVAILABILITY_PLAN_TYPE,
+                "availableInNewTerritories": True,
+            },
+            "relationships": {
+                "subscription": {"data": {"type": "subscriptions", "id": sub_id}},
+                "availableTerritories": {
+                    "data": [{"type": "territories", "id": t} for t in territories]
+                },
+            },
+        }
+    })
+    av_id = created["data"]["id"]
+    print(f"    created availability {av_id} ({AVAILABILITY_PLAN_TYPE}, "
+          f"{len(territories)} territories)")
+    return av_id
+
+
+def run_prepare_availability(token: str) -> None:
+    """Set the subscription's sales availability (plan availabilities).
+
+    The review submission rejects a subscription whose availability has never been
+    set (IAP_SUBMISSION_NOT_ALLOWED_AVAILABILITY_NEVER_SET). Territories mirror the
+    priced markets minus excluded ones. Idempotent: replaces territories on an existing
+    availability instead of duplicating it.
+    """
+    groups = api("GET", f"/v1/apps/{APP_ID}/subscriptionGroups?limit=20", token)
+    for g in groups.get("data", []):
+        subs = api(
+            "GET", f"/v1/subscriptionGroups/{g['id']}/subscriptions?limit=20", token)
+        for s in subs.get("data", []):
+            sa = s["attributes"]
+            print(f"  subscription {sa.get('productId')} ({s['id']})")
+            ensure_availability(token, s["id"])
 
 
 def ensure_group_version(token: str, gid: str) -> str:
@@ -731,6 +810,10 @@ def main():
 
     if command == "prepare-group":
         run_prepare_group(token)
+        return
+
+    if command == "prepare-availability":
+        run_prepare_availability(token)
         return
 
     version = pick_inflight_version(token)
