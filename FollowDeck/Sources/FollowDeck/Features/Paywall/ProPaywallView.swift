@@ -19,6 +19,10 @@ struct ProPaywallView: View {
     /// The plan the user currently has selected on the paywall.
     @State private var selectedPlanID: String?
 
+    init(initialPlanID: String? = nil) {
+        _selectedPlanID = State(initialValue: initialPlanID)
+    }
+
     /// Public privacy policy linked from the paywall footnote.
     private static let privacyURL = URL(
         string: "https://lm203688.github.io/followdeck-site/privacy.html"
