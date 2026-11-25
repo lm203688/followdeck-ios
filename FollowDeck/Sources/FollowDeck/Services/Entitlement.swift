@@ -14,7 +14,7 @@ import Foundation
 enum Entitlement: Equatable {
     /// Free tier: capped roster, core follow-up features only.
     case free
-    /// Pro: unlimited roster and Pro features.
+    /// Pro: unlimited client roster.
     case pro
 }
 
