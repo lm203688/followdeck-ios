@@ -264,19 +264,21 @@ def run_inspect(token: str) -> None:
                   f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  "
                   f"reviewScreenshot={shot_state}  versions=[{ver_states}]  id={s['id']}")
             for v in vers.get("data", []):
-                _inspect_sub_version(token, v["id"], sa.get("productId"))
+                _inspect_sub_version(token, v["id"], s["id"], sa.get("productId"))
 
 
-def _inspect_sub_version(token: str, ver_id: str, product_id: str) -> None:
+def _inspect_sub_version(token: str, ver_id: str, sub_id: str, product_id: str) -> None:
     """Deep read a subscription version's review-blocking relations (read-only)."""
 
-    def _get(rel: str):
+    def _get_url(url: str):
         try:
-            return api("GET", f"/v1/subscriptionVersions/{ver_id}/{rel}", token)
+            return api("GET", url, token), None
+        except urllib.error.HTTPError as e:
+            return None, e.code
         except SystemExit:
-            return None
+            return None, "exit"
 
-    loc = _get("subscriptionLocalizations")
+    loc, loc_err = _get_url(f"/v1/subscriptionVersions/{ver_id}/localizations")
     loc_info = []
     if loc:
         for l in loc.get("data", []):
@@ -285,25 +287,22 @@ def _inspect_sub_version(token: str, ver_id: str, product_id: str) -> None:
                 f"{la.get('locale')}:name={len((la.get('name') or '').strip())},"
                 f"desc={len((la.get('description') or '').strip())}"
             )
-    loc_n = len(loc.get("data", [])) if loc else "ERR"
+    loc_n = len(loc.get("data", [])) if loc else f"ERR({loc_err})"
 
-    price = _get("subscriptionPrice")
-    if price is None:
-        price_state = "ERR"
-    elif not price.get("data"):
-        price_state = "data=null"
-    else:
-        pa = price["data"].get("attributes") or {}
-        price_state = f"price={pa.get('price')} tier={pa.get('priceTier')}"
-
-    img = _get("subscriptionVersionImage")
+    img, _ = _get_url(f"/v1/subscriptionVersions/{ver_id}/images")
     if img and img.get("data"):
-        img_state = (img["data"].get("attributes") or {}) \
+        img_state = (img["data"][0].get("attributes") or {}) \
             .get("assetDeliveryState", {}).get("state") or "present"
     else:
         img_state = "none"
 
-    offer = _get("introductoryOffer")
+    price, price_err = _get_url(f"/v1/subscriptions/{sub_id}/prices?limit=200")
+    if price and price.get("data") is not None:
+        price_state = f"{len(price['data'])} territories"
+    else:
+        price_state = f"ERR({price_err})"
+
+    offer, _ = _get_url(f"/v1/subscriptions/{sub_id}/introductoryOffers?limit=200")
     offer_state = "present" if (offer and offer.get("data")) else "none"
 
     print(f"      └ {product_id} localizations={loc_n} [{'; '.join(loc_info)}]  "
