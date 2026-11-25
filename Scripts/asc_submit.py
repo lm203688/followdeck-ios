@@ -236,8 +236,9 @@ def run_inspect(token: str) -> None:
         build_id = rel_build.get("id", "(none)")
         print(f"  {a.get('versionString')}  state={a.get('appStoreState')}  "
               f"releaseType={a.get('releaseType')}  build={build_id}  id={v['id']}")
-        if a.get("appStoreState") in IN_FLIGHT_STATES:
-            _inspect_version_assets(token, v["id"])
+        # Read-only asset snapshot for every version, including IN_REVIEW / APPROVED /
+        # READY_FOR_SALE, so post-submission localization and screenshot counts can be verified.
+        _inspect_version_assets(token, v["id"])
 
     builds = api(
         "GET",
