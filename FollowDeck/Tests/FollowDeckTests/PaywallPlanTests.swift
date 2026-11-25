@@ -55,13 +55,10 @@ final class PaywallPlanTests: XCTestCase {
         XCTAssertEqual(monthly.ctaTitle, "Subscribe")
     }
 
-    func testProFeaturesMirrorSubscriptionDescription() {
-        XCTAssertEqual(PaywallCatalog.proFeatures, [
-            "Unlimited clients",
-            "Unlimited sequences",
-            "Unlimited templates",
-            "Unlimited reports",
-        ])
+    func testProFeaturesListUnlimitedClientsOnly() {
+        // The first Pro release sells an unlimited client roster only; sequences,
+        // templates and reports are upcoming and must not appear in the paywall list.
+        XCTAssertEqual(PaywallCatalog.proFeatures, ["Unlimited clients"])
     }
 
     func testPlanMappingPreservesStoreFields() {
