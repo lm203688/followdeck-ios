@@ -217,8 +217,14 @@ def run_inspect(token: str) -> None:
         subs = api("GET", f"/v1/subscriptionGroups/{gid}/subscriptions?limit=20", token)
         for s in subs.get("data", []):
             sa = s["attributes"]
+            shot = _existing_review_screenshot(token, s["id"])
+            shot_state = "(none)"
+            if shot:
+                shot_state = (shot.get("attributes") or {}) \
+                    .get("assetDeliveryState", {}).get("state")
             print(f"    product={sa.get('productId')}  state={sa.get('state')}  "
-                  f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  id={s['id']}")
+                  f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  "
+                  f"reviewScreenshot={shot_state}  id={s['id']}")
 
 
 def collect_submission_subscription_versions(token: str) -> list:
