@@ -255,9 +255,14 @@ def run_inspect(token: str) -> None:
             if shot:
                 shot_state = (shot.get("attributes") or {}) \
                     .get("assetDeliveryState", {}).get("state")
+            vers = api("GET", f"/v1/subscriptions/{s['id']}/versions?limit=20", token)
+            ver_states = ", ".join(
+                f"{v['attributes'].get('state')}({v['id'][:8]})"
+                for v in vers.get("data", [])
+            ) or "(none)"
             print(f"    product={sa.get('productId')}  state={sa.get('state')}  "
                   f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  "
-                  f"reviewScreenshot={shot_state}  id={s['id']}")
+                  f"reviewScreenshot={shot_state}  versions=[{ver_states}]  id={s['id']}")
 
 
 def collect_submission_subscription_versions(token: str) -> list:
