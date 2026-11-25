@@ -42,13 +42,11 @@ enum PaywallCatalog {
     /// The yearly plan carries a 7-day free trial; the monthly plan has none.
     static let yearlyFreeTrialDays = 7
 
-    /// Pro feature highlights shown on the paywall. Mirrors the ASC subscription
-    /// description: "Unlimited clients, sequences, templates and reports."
+    /// Pro feature highlights shown on the paywall. The first Pro release unlocks
+    /// an unlimited client roster only; automated sequences, message templates and
+    /// advanced reports are upcoming roadmap tracks and are not sold in this build.
     static let proFeatures: [String] = [
         "Unlimited clients",
-        "Unlimited sequences",
-        "Unlimited templates",
-        "Unlimited reports",
     ]
 
     /// Deterministic period copy for a known Pro product ID.
