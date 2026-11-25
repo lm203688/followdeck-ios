@@ -249,7 +249,8 @@ def run_inspect(token: str) -> None:
         print(f"  group {gid}  name={ga.get('referenceName')}")
         subs = api("GET", f"/v1/subscriptionGroups/{gid}/subscriptions?limit=20", token)
         for s in subs.get("data", []):
-            sa = s["attributes"]
+            det = api("GET", f"/v1/subscriptions/{s['id']}", token)
+            sa = det["data"]["attributes"]
             shot = _existing_review_screenshot(token, s["id"])
             shot_state = "(none)"
             if shot:
@@ -260,9 +261,11 @@ def run_inspect(token: str) -> None:
                 f"{v['attributes'].get('state')}({v['id'][:8]})"
                 for v in vers.get("data", [])
             ) or "(none)"
+            note_len = len((sa.get("reviewNote") or "").strip())
             print(f"    product={sa.get('productId')}  state={sa.get('state')}  "
                   f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  "
-                  f"reviewScreenshot={shot_state}  versions=[{ver_states}]  id={s['id']}")
+                  f"reviewNote={note_len}  reviewScreenshot={shot_state}  "
+                  f"versions=[{ver_states}]  id={s['id']}")
             for v in vers.get("data", []):
                 _inspect_sub_version(token, v["id"], s["id"], sa.get("productId"))
 
