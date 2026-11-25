@@ -15,6 +15,8 @@ struct SettingsView: View {
     @EnvironmentObject private var subscriptions: SubscriptionManager
     @Environment(\.dismiss) private var dismiss
 
+    @State private var showingPaywall = false
+
     private let info = AppInfo.current()
 
     private var feedbackURL: URL? {
@@ -50,6 +52,11 @@ struct SettingsView: View {
                     } else {
                         Text("Free plan — up to \(EntitlementPolicy.freeTierClientLimit) clients.")
                             .foregroundColor(.secondary)
+                        Button {
+                            showingPaywall = true
+                        } label: {
+                            Label("Upgrade to Pro", systemImage: "star.fill")
+                        }
                     }
                     Button {
                         subscriptions.restorePurchases()
@@ -87,6 +94,9 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showingPaywall) {
+                ProPaywallView()
             }
         }
     }
