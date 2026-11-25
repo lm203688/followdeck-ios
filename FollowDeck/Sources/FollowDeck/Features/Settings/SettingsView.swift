@@ -21,7 +21,7 @@ struct SettingsView: View {
         let device = "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
         let body = "Device: \(device)\nApp: \(info.versionDisplay)\n\n"
         return FeedbackMail.composeURL(
-            to: FeedbackMail.placeholderRecipient,
+            to: FeedbackMail.recipient,
             subject: "FollowDeck feedback",
             body: body
         )
