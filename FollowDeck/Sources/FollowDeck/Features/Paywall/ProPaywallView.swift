@@ -27,7 +27,13 @@ struct ProPaywallView: View {
     private var presentation: PaywallPresentation { subscriptions.presentation }
 
     private var selectedPlan: PaywallPlan? {
-        presentation.plans.first { $0.id == selectedPlanID }
+        if let id = selectedPlanID,
+           let plan = presentation.plans.first(where: { $0.id == id }) {
+            return plan
+        }
+        // Fall back to the recommended plan (or first) when products load
+        // after the view first appears, so the CTA never stays disabled.
+        return presentation.recommended ?? presentation.plans.first
     }
 
     var body: some View {
@@ -97,7 +103,7 @@ struct ProPaywallView: View {
     }
 
     private func planCard(for plan: PaywallPlan) -> some View {
-        let isSelected = plan.id == selectedPlanID
+        let isSelected = plan.id == selectedPlan?.id
         return Button {
             selectedPlanID = plan.id
         } label: {
