@@ -181,8 +181,11 @@ def run_inspect(token: str) -> None:
     print("== App Store versions ==")
     for v in versions.get("data", []):
         a = v["attributes"]
+        rel_build = (v.get("relationships", {}).get("build", {})
+                     .get("data") or {})
+        build_id = rel_build.get("id", "(none)")
         print(f"  {a.get('versionString')}  state={a.get('appStoreState')}  "
-              f"releaseType={a.get('releaseType')}  id={v['id']}")
+              f"releaseType={a.get('releaseType')}  build={build_id}  id={v['id']}")
 
     builds = api(
         "GET",
