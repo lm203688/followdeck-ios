@@ -167,8 +167,54 @@ def open_submission(token: str) -> str:
     return sid
 
 
+def run_inspect(token: str) -> None:
+    """Read-only ASC state dump: versions, builds, subscription groups/products.
+
+    Used to verify the stored ASC API key can reach the official REST endpoint and to
+    cross-check the live state before assembling the in-flight version. No write calls.
+    """
+    versions = api(
+        "GET",
+        f"/v1/apps/{APP_ID}/appStoreVersions?filter[platform]=IOS&limit=20",
+        token,
+    )
+    print("== App Store versions ==")
+    for v in versions.get("data", []):
+        a = v["attributes"]
+        print(f"  {a.get('versionString')}  state={a.get('appStoreState')}  "
+              f"releaseType={a.get('releaseType')}  id={v['id']}")
+
+    builds = api(
+        "GET",
+        f"/v1/apps/{APP_ID}/builds?limit=20&sort=-uploadedDate",
+        token,
+    )
+    print("== Builds ==")
+    for b in builds.get("data", []):
+        a = b["attributes"]
+        print(f"  version={a.get('version')}  processing={a.get('processingState')}  "
+              f"expired={a.get('expired')}  uploaded={a.get('uploadedDate')}  id={b['id']}")
+
+    groups = api("GET", f"/v1/apps/{APP_ID}/subscriptionGroups?limit=20", token)
+    print("== Subscription groups ==")
+    for g in groups.get("data", []):
+        ga = g["attributes"]
+        gid = g["id"]
+        print(f"  group {gid}  name={ga.get('referenceName')}")
+        subs = api("GET", f"/v1/subscriptionGroups/{gid}/subscriptions?limit=20", token)
+        for s in subs.get("data", []):
+            sa = s["attributes"]
+            print(f"    product={sa.get('productId')}  state={sa.get('state')}  "
+                  f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  id={s['id']}")
+
+
 def main():
     token = mint_jwt()
+    command = sys.argv[1] if len(sys.argv) > 1 else "submit"
+
+    if command == "inspect":
+        run_inspect(token)
+        return
 
     version = pick_inflight_version(token)
     version_id = version["id"]
