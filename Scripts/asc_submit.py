@@ -138,7 +138,7 @@ def api(method: str, path: str, token: str, body=None):
             raw = resp.read().decode()
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
-        detail = e.read().decode()[:500]
+        detail = e.read().decode()[:1800]
         raise SystemExit(f"ASC {method} {path} -> HTTP {e.code}: {detail}")
 
 
@@ -263,6 +263,51 @@ def run_inspect(token: str) -> None:
             print(f"    product={sa.get('productId')}  state={sa.get('state')}  "
                   f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  "
                   f"reviewScreenshot={shot_state}  versions=[{ver_states}]  id={s['id']}")
+            for v in vers.get("data", []):
+                _inspect_sub_version(token, v["id"], sa.get("productId"))
+
+
+def _inspect_sub_version(token: str, ver_id: str, product_id: str) -> None:
+    """Deep read a subscription version's review-blocking relations (read-only)."""
+
+    def _get(rel: str):
+        try:
+            return api("GET", f"/v1/subscriptionVersions/{ver_id}/{rel}", token)
+        except SystemExit:
+            return None
+
+    loc = _get("subscriptionLocalizations")
+    loc_info = []
+    if loc:
+        for l in loc.get("data", []):
+            la = l["attributes"]
+            loc_info.append(
+                f"{la.get('locale')}:name={len((la.get('name') or '').strip())},"
+                f"desc={len((la.get('description') or '').strip())}"
+            )
+    loc_n = len(loc.get("data", [])) if loc else "ERR"
+
+    price = _get("subscriptionPrice")
+    if price is None:
+        price_state = "ERR"
+    elif not price.get("data"):
+        price_state = "data=null"
+    else:
+        pa = price["data"].get("attributes") or {}
+        price_state = f"price={pa.get('price')} tier={pa.get('priceTier')}"
+
+    img = _get("subscriptionVersionImage")
+    if img and img.get("data"):
+        img_state = (img["data"].get("attributes") or {}) \
+            .get("assetDeliveryState", {}).get("state") or "present"
+    else:
+        img_state = "none"
+
+    offer = _get("introductoryOffer")
+    offer_state = "present" if (offer and offer.get("data")) else "none"
+
+    print(f"      └ {product_id} localizations={loc_n} [{'; '.join(loc_info)}]  "
+          f"price={price_state}  image={img_state}  introOffer={offer_state}")
 
 
 def collect_submission_subscription_versions(token: str) -> list:
