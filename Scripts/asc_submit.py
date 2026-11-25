@@ -297,16 +297,38 @@ def _inspect_sub_version(token: str, ver_id: str, sub_id: str, product_id: str) 
         img_state = "none"
 
     price, price_err = _get_url(f"/v1/subscriptions/{sub_id}/prices?limit=200")
-    if price and price.get("data") is not None:
-        price_state = f"{len(price['data'])} territories"
+    n_terr = len(price["data"]) if (price and price.get("data") is not None) else f"ERR({price_err})"
+
+    us, _ = _get_url(
+        f"/v1/subscriptions/{sub_id}/prices?filter[territory]=USA"
+        "&include=subscriptionPricePoint,territory")
+    if us and us.get("data"):
+        p = us["data"][0]
+        pa = p.get("attributes") or {}
+        pp = (p.get("relationships", {})
+              .get("subscriptionPricePoint", {}).get("data") or {})
+        pp_id = pp.get("id", "(none)")
+        cust = ""
+        for i in us.get("included", []):
+            if i.get("id") == pp_id:
+                cust = (i.get("attributes") or {}).get("customerPrice", "")
+        price_state = (f"USA plan={pa.get('planType')} preserved={pa.get('preserved')} "
+                       f"point={pp_id} customerPrice={cust} (total {n_terr} territories)")
     else:
-        price_state = f"ERR({price_err})"
+        price_state = f"USA price missing (total {n_terr})"
 
     offer, _ = _get_url(f"/v1/subscriptions/{sub_id}/introductoryOffers?limit=200")
     offer_state = "present" if (offer and offer.get("data")) else "none"
 
+    ver, ver_err = _get_url(f"/v1/subscriptionVersions/{ver_id}")
+    ver_attrs = {}
+    if ver and ver.get("data"):
+        ver_attrs = ver["data"].get("attributes") or {}
+
     print(f"      └ {product_id} localizations={loc_n} [{'; '.join(loc_info)}]  "
           f"price={price_state}  image={img_state}  introOffer={offer_state}")
+    print(f"        version attrs: {json.dumps(ver_attrs, ensure_ascii=False)}"
+          if ver_attrs else f"        version attrs: ERR({ver_err})")
 
 
 def collect_submission_subscription_versions(token: str) -> list:
