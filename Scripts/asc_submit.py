@@ -208,12 +208,76 @@ def run_inspect(token: str) -> None:
                   f"submitWithNext={sa.get('submitWithNextAppStoreVersion')}  id={s['id']}")
 
 
+def find_version(token: str, version_string: str):
+    res = api(
+        "GET",
+        f"/v1/apps/{APP_ID}/appStoreVersions?filter[platform]=IOS&limit=20",
+        token,
+    )
+    for version in res.get("data", []):
+        if version["attributes"].get("versionString") == version_string:
+            return version
+    return None
+
+
+def run_prepare(token: str) -> None:
+    """Create the in-flight draft version (if missing) and associate the target VALID build.
+
+    Idempotent: an existing version with the target version string is reused, never duplicated.
+    This only assembles the draft; it does not fill localization/screenshots and does NOT submit
+    for review. Targets come from env: TARGET_VERSION (default 1.1), TARGET_BUILD (default 4).
+    """
+    target_version = os.environ.get("TARGET_VERSION", "1.1")
+    target_build = os.environ.get("TARGET_BUILD", "4")
+
+    version = find_version(token, target_version)
+    if version:
+        version_id = version["id"]
+        print(f"Reusing existing {target_version} version {version_id} "
+              f"({version['attributes'].get('appStoreState')})")
+    else:
+        created = api("POST", "/v1/appStoreVersions", token, {
+            "data": {
+                "type": "appStoreVersions",
+                "attributes": {
+                    "versionString": target_version,
+                    "platform": "IOS",
+                    "releaseType": "AFTER_APPROVAL",
+                },
+                "relationships": {"app": {"data": {"type": "apps", "id": APP_ID}}},
+            }
+        })
+        version_id = created["data"]["id"]
+        print(f"Created {target_version} draft version {version_id}")
+
+    builds = api("GET", f"/v1/apps/{APP_ID}/builds?limit=20", token)
+    target = None
+    for b in builds.get("data", []):
+        a = b["attributes"]
+        if a.get("version") == target_build and a.get("processingState") == "VALID":
+            target = b
+            break
+    if not target:
+        raise SystemExit(f"No VALID build version {target_build} found for association.")
+    build_id = target["id"]
+    print(f"Associating build {build_id} (version {target_build}) to version {version_id}")
+
+    api("PATCH", f"/v1/appStoreVersions/{version_id}/relationships/build", token, {
+        "data": {"type": "builds", "id": build_id}
+    })
+    print(f"Build {build_id} associated to version {version_id}. Draft remains unsubmitted.")
+
+
 def main():
     token = mint_jwt()
     command = sys.argv[1] if len(sys.argv) > 1 else "submit"
 
     if command == "inspect":
         run_inspect(token)
+        return
+
+    if command == "prepare":
+        run_prepare(token)
         return
 
     version = pick_inflight_version(token)
