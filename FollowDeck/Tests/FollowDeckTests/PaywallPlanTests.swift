@@ -47,6 +47,14 @@ final class PaywallPlanTests: XCTestCase {
         XCTAssertNil(monthly.trialCopy)
     }
 
+    func testCtaTitleTrialPlanLeadsWithFreeTrial() {
+        let yearly = PaywallCatalog.plan(from: makeProduct(ProductIDs.yearly, name: "Pro Yearly", price: "$29.99"))
+        XCTAssertEqual(yearly.ctaTitle, "Start free trial")
+
+        let monthly = PaywallCatalog.plan(from: makeProduct(ProductIDs.monthly, name: "Pro Monthly", price: "$4.99"))
+        XCTAssertEqual(monthly.ctaTitle, "Subscribe")
+    }
+
     func testProFeaturesMirrorSubscriptionDescription() {
         XCTAssertEqual(PaywallCatalog.proFeatures, [
             "Unlimited clients",
