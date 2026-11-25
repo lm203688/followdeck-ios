@@ -15,11 +15,13 @@ Preconditions (completed in the ASC web first; see docs/signing-runbook.md secti
 import base64
 import json
 import os
+import struct
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+import zipfile
 
 API = "https://api.appstoreconnect.apple.com"
 APP_ID = os.environ.get("ASC_APP_ID", "6838357401")
@@ -307,6 +309,161 @@ def run_prepare(token: str) -> None:
     print(f"Build {build_id} associated to version {version_id}. Draft remains unsubmitted.")
 
 
+# --- Subscription review screenshot attachment (attach-screenshots lane) ---
+
+REPO = os.environ.get("GITHUB_REPOSITORY", "lm203688/followdeck-ios")
+GH_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+
+
+def _raw_request(method: str, url: str, data=None, headers=None, expect_json=True):
+    h = dict(headers or {})
+    req = urllib.request.Request(url, data=data, method=method, headers=h)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            raw = resp.read()
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode()[:500]
+        raise SystemExit(f"{method} {url} -> HTTP {e.code}: {detail}")
+    if expect_json:
+        return json.loads(raw.decode()) if raw else {}
+    return raw
+
+
+def _download_artifact(artifact_id: str, dest_dir: str) -> None:
+    """Fetch a repo artifact zip from inside the runner (GitHub-internal network).
+
+    The API 303-redirects to a signed blob URL; the bearer token must NOT be
+    forwarded to that redirect, so the redirect is followed manually.
+    """
+    api_url = f"https://api.github.com/repos/{REPO}/actions/artifacts/{artifact_id}/zip"
+    opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler)
+    req = urllib.request.Request(api_url, headers={
+        "Authorization": f"Bearer {GH_TOKEN}",
+        "Accept": "application/vnd.github+json",
+    })
+    # urllib follows 303 automatically but keeps the Authorization header on the
+    # redirect; the signed blob rejects it. Resolve the Location ourselves.
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+
+    no_redirect = urllib.request.build_opener(_NoRedirect)
+    try:
+        no_redirect.open(req, timeout=60)
+        blob = b""
+    except urllib.error.HTTPError as e:
+        if e.code not in (301, 302, 303, 307, 308):
+            raise SystemExit(f"artifact {artifact_id} -> HTTP {e.code}: "
+                             f"{e.read().decode()[:300]}")
+        location = e.headers["Location"]
+        blob = _raw_request("GET", location, expect_json=False)
+
+    zpath = os.path.join(dest_dir, f"artifact-{artifact_id}.zip")
+    with open(zpath, "wb") as f:
+        f.write(blob)
+    with zipfile.ZipFile(zpath) as z:
+        z.extractall(dest_dir)
+    print(f"Artifact {artifact_id}: {len(blob)} bytes extracted to {dest_dir}")
+
+
+def _find_frame(dest_dir: str, basename: str) -> str:
+    for root, _, files in os.walk(dest_dir):
+        if basename in files:
+            return os.path.join(root, basename)
+    raise SystemExit(f"Frame {basename} not found under {dest_dir}")
+
+
+def _png_size(path: str):
+    with open(path, "rb") as f:
+        data = f.read()
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise SystemExit(f"Not a PNG: {path}")
+    w, h = struct.unpack(">II", data[16:24])
+    return w, h, len(data)
+
+
+def _existing_review_screenshot(token: str, sub_id: str):
+    res = api("GET", f"/v1/subscriptions/{sub_id}/appStoreReviewScreenshot", token)
+    return res.get("data")
+
+
+def attach_review_screenshot(token: str, sub_id: str, png_path: str, label: str) -> None:
+    w, h, size = _png_size(png_path)
+    print(f"[{label}] {os.path.basename(png_path)} {w}x{h} {size} bytes")
+
+    existing = _existing_review_screenshot(token, sub_id)
+    if existing:
+        state = (existing.get("attributes") or {}) \
+            .get("assetDeliveryState", {}).get("state")
+        print(f"[{label}] review screenshot already present ({state}); skipping.")
+        return
+
+    with open(png_path, "rb") as f:
+        payload = f.read()
+
+    created = api("POST", "/v1/subscriptionAppStoreReviewScreenshots", token, {
+        "data": {
+            "type": "subscriptionAppStoreReviewScreenshots",
+            "attributes": {
+                "fileName": os.path.basename(png_path),
+                "fileSize": size,
+            },
+            "relationships": {
+                "subscription": {"data": {"type": "subscriptions", "id": sub_id}}
+            },
+        }
+    })
+    shot = created["data"]
+    shot_id = shot["id"]
+    ops = shot["attributes"].get("uploadOperations") or []
+    if not ops:
+        raise SystemExit(f"[{label}] no uploadOperations in reservation {shot_id}")
+
+    for op in ops:
+        headers = {hd["name"]: hd["value"]
+                    for hd in (op.get("requestHeaders") or [])}
+        off = op.get("offset") or 0
+        length = op.get("length") or len(payload)
+        chunk = payload[off:off + length]
+        _raw_request(op["method"], op["url"], data=chunk,
+                     headers=headers, expect_json=False)
+
+    api("PATCH", f"/v1/subscriptionAppStoreReviewScreenshots/{shot_id}", token, {
+        "data": {
+            "type": "subscriptionAppStoreReviewScreenshots",
+            "id": shot_id,
+            "attributes": {"uploaded": True, "sourceFileChecksum": None},
+        }
+    })
+
+    state = None
+    for _ in range(6):
+        time.sleep(2)
+        chk = api("GET", f"/v1/subscriptionAppStoreReviewScreenshots/{shot_id}", token)
+        state = (chk["data"].get("attributes") or {}) \
+            .get("assetDeliveryState", {}).get("state")
+        if state in ("COMPLETE", "UPLOAD_COMPLETE"):
+            print(f"[{label}] committed, state={state} ({shot_id})")
+            return
+    raise SystemExit(f"[{label}] screenshot did not reach COMPLETE; last state={state}")
+
+
+def run_attach_screenshots(token: str) -> None:
+    work = os.path.join(WORK, "attach-shots")
+    os.makedirs(work, exist_ok=True)
+    iphone_artifact = os.environ.get("ARTIFACT_IPHONE", "15009108376")
+
+    plan = [
+        {"sub": "6838602869", "frame": "05-paywall-yearly.png", "label": "yearly"},
+        {"sub": "6838602473", "frame": "06-paywall-monthly.png", "label": "monthly"},
+    ]
+    _download_artifact(iphone_artifact, work)
+    for item in plan:
+        png = _find_frame(work, item["frame"])
+        attach_review_screenshot(token, item["sub"], png, item["label"])
+    print("All subscription review screenshots attached.")
+
+
 def main():
     token = mint_jwt()
     command = sys.argv[1] if len(sys.argv) > 1 else "submit"
@@ -317,6 +474,10 @@ def main():
 
     if command == "prepare":
         run_prepare(token)
+        return
+
+    if command == "attach-screenshots":
+        run_attach_screenshots(token)
         return
 
     version = pick_inflight_version(token)
