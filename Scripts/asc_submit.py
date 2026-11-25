@@ -186,7 +186,7 @@ def run_inspect(token: str) -> None:
 
     builds = api(
         "GET",
-        f"/v1/apps/{APP_ID}/builds?limit=20&sort=-uploadedDate",
+        f"/v1/apps/{APP_ID}/builds?limit=20",
         token,
     )
     print("== Builds ==")
