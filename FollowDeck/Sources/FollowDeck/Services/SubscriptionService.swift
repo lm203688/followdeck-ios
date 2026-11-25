@@ -142,3 +142,29 @@ enum SubscriptionError: Error, Equatable {
     case userCancelled
     case pending
 }
+
+/// Offline subscription service used only for screenshots and SwiftUI previews.
+/// Returns the two catalog Pro products with fixed display pricing; it never contacts
+/// the App Store, StoreKit or a network session. The active entitlement stays free so
+/// the paywall plan picker (rather than the active-Pro card) is what gets captured.
+final class PreviewSubscriptionService: SubscriptionServiceProtocol {
+    /// Fixed catalog products with the USD list prices shown on the paywall.
+    static let previewProducts: [DisplayProduct] = [
+        DisplayProduct(id: ProductIDs.monthly, name: "FollowDeck Pro Monthly",
+                       priceDisplay: "$4.99", period: "1 month"),
+        DisplayProduct(id: ProductIDs.yearly, name: "FollowDeck Pro Yearly",
+                       priceDisplay: "$29.99", period: "1 year"),
+    ]
+
+    func loadProducts() async throws -> [DisplayProduct] { Self.previewProducts }
+
+    func purchase(productID: String) async throws -> Set<String> { [] }
+
+    func restorePurchases() async throws -> Set<String> { [] }
+
+    func activeProductIDs() async -> Set<String> { [] }
+
+    func updates() -> AsyncStream<Set<String>> {
+        AsyncStream { $0.finish() }
+    }
+}
