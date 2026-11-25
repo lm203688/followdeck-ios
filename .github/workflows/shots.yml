@@ -99,12 +99,15 @@ jobs:
           done
 
           # Pro paywall: rendered from the offline preview catalog (no StoreKit session).
-          # Shows both plans with price, period, the yearly trial, Restore Purchases and the
-          # privacy link; used for the subscription review screenshots.
-          xcrun simctl launch "$DEVICE" "$BUNDLE_ID" "-uiTab=paywall" >/dev/null
-          sleep 5
-          xcrun simctl io "$DEVICE" screenshot "shots/$TARGET/05-paywall.png"
-          xcrun simctl terminate "$DEVICE" "$BUNDLE_ID" 2>/dev/null || true
+          # One frame per product, with the matching plan preselected; each shows plan
+          # name, price, period, the yearly trial, Restore Purchases and the privacy link.
+          for pair in "yearly:05-paywall-yearly" "monthly:06-paywall-monthly"; do
+            plan="${pair%%:*}"; name="${pair##*:}"
+            xcrun simctl launch "$DEVICE" "$BUNDLE_ID" "-uiTab=paywall" "-plan=$plan" >/dev/null
+            sleep 5
+            xcrun simctl io "$DEVICE" screenshot "shots/$TARGET/$name.png"
+            xcrun simctl terminate "$DEVICE" "$BUNDLE_ID" 2>/dev/null || true
+          done
 
           python3 - <<'PY'
           import glob, struct
