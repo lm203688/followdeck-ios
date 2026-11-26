@@ -28,10 +28,20 @@ protocol AIServiceProtocol: AnyObject {
     func draftReengagementMessage(for client: Client, context: String) async throws -> String
 }
 
-/// Local rule-engine tier until native on-device or secure backend integration ships in a
-/// later release. The current tier uses stage-based cadence, dwell-time awareness and
-/// last-contact channel. Every suggestion is labelled `native`; nothing leaves the device.
+/// Local rule-engine tier with an optional L2 on-device model bridge for drafts.
+/// Next-step suggestions stay on the L1 rule engine; a draft first tries the injected
+/// L2 generator and falls back to the L1 rule template when L2 is unavailable or fails.
+/// Every path runs on-device; nothing leaves the device.
 final class AIService: AIServiceProtocol {
+    private let ruleGenerator: DraftGeneratorProtocol
+    private let modelGenerator: DraftGeneratorProtocol?
+
+    init(ruleGenerator: DraftGeneratorProtocol = RuleDraftGenerator(),
+         modelGenerator: DraftGeneratorProtocol? = nil) {
+        self.ruleGenerator = ruleGenerator
+        self.modelGenerator = modelGenerator
+    }
+
     func suggestNextStep(for deal: Deal, history: [Interaction]) async throws -> NextStepSuggestion {
         // TODO(later): prefer on-device/native framework; fall back to secure backend only if needed.
         let calendar = Calendar.current
@@ -81,7 +91,14 @@ final class AIService: AIServiceProtocol {
     }
 
     func draftReengagementMessage(for client: Client, context: String) async throws -> String {
-        // TODO(later): produce an editable draft; never auto-send.
-        return "Hi \(client.name), just checking in on \(context). Let me know if you need anything from me."
+        // Prefer the injected on-device model when it can serve the request; fall back to
+        // the local rule template otherwise. The result is always an editable draft that
+        // the user reviews before sending; it is never auto-sent.
+        if let modelGenerator,
+           let result = await modelGenerator.draft(clientName: client.name, context: context) {
+            return result.text
+        }
+        return await ruleGenerator.draft(clientName: client.name, context: context)?.text
+            ?? "Hi \(client.name), just checking in."
     }
 }
