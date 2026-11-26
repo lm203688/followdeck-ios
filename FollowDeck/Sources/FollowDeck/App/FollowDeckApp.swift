@@ -28,6 +28,8 @@ struct FollowDeckApp: App {
         let service: SubscriptionServiceProtocol = StoreKitSubscriptionService()
         #endif
         _subscriptions = StateObject(wrappedValue: SubscriptionManager(service: service))
+        // Refresh the registered Siri / Shortcuts suggestions for the current intents.
+        FollowDeckShortcuts.updateAppShortcutParameters()
     }
 
     var body: some Scene {
