@@ -169,7 +169,7 @@ private struct NextStepCard: View {
     private func load() {
         Task {
             do {
-                suggestion = try await AIService().suggestNextStep(for: deal, history: history)
+                suggestion = try await AIServiceAssembly.shared.suggestNextStep(for: deal, history: history)
             } catch {
                 failed = true
             }
