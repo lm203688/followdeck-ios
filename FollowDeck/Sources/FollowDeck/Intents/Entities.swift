@@ -38,7 +38,7 @@ struct ClientEntity: AppEntity {
     }
 }
 
-struct ClientEntityQuery: EntityQuery {
+struct ClientEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [ClientEntity] {
         await MainActor.run {
             let store = PersistenceController.shared.makeStore()
@@ -51,6 +51,23 @@ struct ClientEntityQuery: EntityQuery {
         await MainActor.run {
             PersistenceController.shared.makeStore().clients().map(ClientEntity.init)
         }
+    }
+
+    func entities(matching string: String) async throws -> [ClientEntity] {
+        await MainActor.run {
+            let store = PersistenceController.shared.makeStore()
+            let term = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !term.isEmpty else { return store.clients().map(ClientEntity.init) }
+            return store.clients().filter { Self.matches(client: $0, term: term) }.map(ClientEntity.init)
+        }
+    }
+
+    /// Case-insensitive substring match against the name, email, phone and tags.
+    /// Pure so it can be unit-tested off-device without a store.
+    static func matches(client: Client, term: String) -> Bool {
+        let haystack = [client.name, client.email ?? "", client.phone ?? "", client.tags.joined(separator: " ")]
+            .joined(separator: " ")
+        return haystack.localizedCaseInsensitiveContains(term)
     }
 }
 
@@ -84,7 +101,7 @@ struct FollowUpEntity: AppEntity {
     }
 }
 
-struct FollowUpEntityQuery: EntityQuery {
+struct FollowUpEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [FollowUpEntity] {
         await MainActor.run {
             let store = PersistenceController.shared.makeStore()
@@ -97,6 +114,20 @@ struct FollowUpEntityQuery: EntityQuery {
         await MainActor.run {
             PersistenceController.shared.makeStore().allFollowUps().map(FollowUpEntity.init)
         }
+    }
+
+    func entities(matching string: String) async throws -> [FollowUpEntity] {
+        await MainActor.run {
+            let store = PersistenceController.shared.makeStore()
+            let term = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !term.isEmpty else { return store.allFollowUps().map(FollowUpEntity.init) }
+            return store.allFollowUps().filter { Self.matches(followUp: $0, term: term) }.map(FollowUpEntity.init)
+        }
+    }
+
+    /// Case-insensitive substring match against the follow-up note.
+    static func matches(followUp: FollowUp, term: String) -> Bool {
+        followUp.note.localizedCaseInsensitiveContains(term)
     }
 }
 
@@ -128,7 +159,7 @@ struct DealEntity: AppEntity {
     }
 }
 
-struct DealEntityQuery: EntityQuery {
+struct DealEntityQuery: EntityQuery, EntityStringQuery {
     func entities(for identifiers: [UUID]) async throws -> [DealEntity] {
         await MainActor.run {
             let store = PersistenceController.shared.makeStore()
@@ -141,5 +172,20 @@ struct DealEntityQuery: EntityQuery {
         await MainActor.run {
             PersistenceController.shared.makeStore().allDeals().map(DealEntity.init)
         }
+    }
+
+    func entities(matching string: String) async throws -> [DealEntity] {
+        await MainActor.run {
+            let store = PersistenceController.shared.makeStore()
+            let term = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !term.isEmpty else { return store.allDeals().map(DealEntity.init) }
+            return store.allDeals().filter { Self.matches(deal: $0, term: term) }.map(DealEntity.init)
+        }
+    }
+
+    /// Case-insensitive substring match against the deal title, next action and owner note.
+    static func matches(deal: Deal, term: String) -> Bool {
+        let haystack = [deal.title, deal.nextAction ?? "", deal.ownerNote].joined(separator: " ")
+        return haystack.localizedCaseInsensitiveContains(term)
     }
 }
