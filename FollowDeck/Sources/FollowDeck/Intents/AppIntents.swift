@@ -154,7 +154,7 @@ struct SuggestNextStepIntent: AppIntent {
             guard let deal = store.allDeals().first(where: { $0.id == id }) else { throw FollowDeckIntentError.missingEntity }
             return (deal, store.interactions(for: deal.clientID))
         }
-        let suggestion = try await AIService().suggestNextStep(for: deal, history: history)
+        let suggestion = try await AIServiceAssembly.shared.suggestNextStep(for: deal, history: history)
         let message = "\(suggestion.action) Suggested for \(DisplayFormat.date(suggestion.suggestedDueAt))."
         return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: message)))
     }
