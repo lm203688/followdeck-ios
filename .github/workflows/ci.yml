@@ -306,6 +306,22 @@ jobs:
       # -allowProvisioningUpdates. Full material/source steps: docs/signing-runbook.md §2/§5/§6/§7/§8.
       # NOTE: this lane has not been run on a real Mac yet. First external run is dry_run;
       # calibrate profile UUID / action inputs against the runner output before enabling release.
+      - name: Resolve build number
+        id: buildnum
+        if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
+        run: |
+          set -euo pipefail
+          BASE=$(sed -E -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION:[[:space:]]*"([0-9]+)".*/\1/p' "$GITHUB_WORKSPACE/project.yml")
+          if [ "${{ github.event.inputs.action }}" = "dry_run" ]; then
+            # CI-only test segment: never collides with release builds (small
+            # project.yml numbers); run_id suffix keeps repeated dry_run unique.
+            BUILD=$(( BASE*100000 + (GITHUB_RUN_ID % 100000) ))
+          else
+            BUILD="$BASE"
+          fi
+          echo "build_number=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "Resolved build $BUILD (base $BASE)"
+
       - name: Verify signing secrets (Route B)
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
         env:
@@ -387,7 +403,8 @@ jobs:
             -archivePath "$RUNNER_TEMP/FollowDeck.xcarchive" \
             DEVELOPMENT_TEAM=98KA35Y747 \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution"
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            CURRENT_PROJECT_VERSION=${{ steps.buildnum.outputs.build_number }}
 
       - name: Export IPA (App Store)
         if: contains(fromJSON('["dry_run","release"]'), github.event.inputs.action)
@@ -433,8 +450,8 @@ jobs:
           BUILD=$(plutil -extract CFBundleVersion raw "$APP/Info.plist")
           SDK_NAME=$(plutil -extract DTSDKName raw "$APP/Info.plist" 2>/dev/null || echo unknown)
           echo "IPA: version $VERSION build $BUILD, $SDK_NAME"
-          EXPECTED_BUILD=$(sed -E -n 's/^[[:space:]]*CURRENT_PROJECT_VERSION:[[:space:]]*"([0-9]+)".*/\1/p' "$GITHUB_WORKSPACE/project.yml")
-          test -n "$EXPECTED_BUILD" || { echo "::error::Could not read CURRENT_PROJECT_VERSION from project.yml"; exit 1; }
+          EXPECTED_BUILD="${{ steps.buildnum.outputs.build_number }}"
+          test -n "$EXPECTED_BUILD" || { echo "::error::Resolved build number is empty"; exit 1; }
           test "$BUILD" = "$EXPECTED_BUILD" || { echo "::error::Expected build $EXPECTED_BUILD, got $BUILD"; exit 1; }
           case "$SDK_NAME" in
             iphoneos27*|iphoneos28*|iphoneos29*) ;;
